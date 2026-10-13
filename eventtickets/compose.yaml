@@ -1,0 +1,9 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: eventtickets
+      POSTGRES_USER: eventtickets
+      POSTGRES_PASSWORD: eventtickets
+    ports:
+      - "5432:5432"

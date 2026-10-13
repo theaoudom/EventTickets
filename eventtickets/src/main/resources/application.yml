@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: eventtickets
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/eventtickets}
+    username: ${DB_USERNAME:eventtickets}
+    password: ${DB_PASSWORD:eventtickets}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_batch_fetch_size: 50
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+        serialization-mode: via-dto
+
+app:
+  jwt:
+    # HS256 needs at least 32 bytes. No default on purpose: set JWT_SECRET.
+    secret: ${JWT_SECRET}
+    expiry: 1h
+
+springdoc:
+  swagger-ui:
+    persist-authorization: true   # keep the token after a page refresh
+    operations-sorter: method

@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Event Tickets Demo</title>
+<style>
+  /* Light theme only: easier to read on a projector */
+  :root {
+    --bg: #f5f6f8; --panel: #ffffff; --ink: #172033; --muted: #5b6475; --line: #e1e5ec; --soft: #f1f3f7;
+    --accent: #2457d6; --accent-soft: #e9effd;
+    --ok: #13804f; --ok-soft: #e4f5ec; --bad: #c0392b; --bad-soft: #fdecea; --warn: #a75a00; --warn-soft: #fff3e0;
+    --alice: #7c3aed; --bob: #0e7490; --admin: #b45309; --anon: #6b7280;
+    --code-bg: #f7f8fa; --k: #1d4ed8; --s: #0f7a3f; --n: #b45309; --b: #9333ea;
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: light; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  button { font: inherit; cursor: pointer; }
+  .mono, pre, code { font-family: "SF Mono", Menlo, Consolas, monospace; }
+
+  /* header */
+  header { background: var(--panel); border-bottom: 1px solid var(--line); }
+  .bar { max-width: 1400px; margin: 0 auto; padding: 14px 24px; display: flex; flex-wrap: wrap; gap: 12px 24px;
+         align-items: center; justify-content: space-between; }
+  h1 { margin: 0; font-size: 22px; }
+  .users { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .user { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--panel);
+          border-radius: 999px; padding: 4px 14px 4px 4px; font-size: 14px; color: var(--ink); }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; color: #fff; display: grid; place-items: center; font-weight: 700; }
+  .user small { color: var(--muted); }
+  .user.in small { color: var(--ok); font-weight: 600; }
+
+  /* tabs */
+  nav { max-width: 1400px; margin: 0 auto; padding: 0 24px; display: flex; gap: 6px; overflow-x: auto; }
+  .tab { border: 0; background: transparent; padding: 12px 14px 10px; font-size: 15px; font-weight: 600; color: var(--muted);
+         border-bottom: 3px solid transparent; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+  .tab .n { font-size: 12px; font-weight: 800; color: var(--accent); }
+  .tab.on { color: var(--ink); border-bottom-color: var(--accent); }
+  .tab .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+  .tab .dot.pass { background: var(--ok); } .tab .dot.fail { background: var(--bad); }
+
+  /* layout */
+  main { max-width: 1400px; margin: 0 auto; padding: 22px 24px 48px; display: grid;
+         grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 22px; align-items: start; }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; }
+
+  /* rule + steps */
+  .rule-no { font-size: 13px; font-weight: 800; letter-spacing: 1.5px; color: var(--accent); }
+  .rule-title { font-size: 26px; font-weight: 750; margin: 2px 0 6px; }
+  .rule-text { font-size: 17px; color: var(--muted); margin: 0 0 16px; }
+  .rule-actions { display: flex; gap: 10px; margin-bottom: 14px; }
+  .primary { background: var(--accent); color: #fff; border: 0; border-radius: 10px; padding: 10px 18px; font-weight: 700; }
+  .secondary { background: var(--panel); color: var(--accent); border: 1px solid var(--accent); border-radius: 10px; padding: 9px 16px; font-weight: 600; }
+
+  .steps { display: flex; flex-direction: column; gap: 10px; }
+  .step { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 14px; align-items: center;
+          border: 2px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--panel); }
+  .step.current { border-color: var(--accent); background: var(--accent-soft); }
+  .step.pass { border-color: #b7e3cb; }
+  .step.fail { border-color: #f3b8b0; background: var(--bad-soft); }
+  .num { width: 32px; height: 32px; border-radius: 50%; background: var(--soft); display: grid; place-items: center;
+         font-weight: 800; color: var(--muted); }
+  .step.pass .num { background: var(--ok); color: #fff; }
+  .step.fail .num { background: var(--bad); color: #fff; }
+  .who { display: inline-block; font-size: 12px; font-weight: 800; color: #fff; padding: 2px 9px; border-radius: 999px; margin-right: 8px; vertical-align: 2px; }
+  .say { font-size: 17px; font-weight: 600; }
+  .meta { font-size: 13.5px; color: var(--muted); margin-top: 3px; }
+  .meta .m { font-weight: 800; color: var(--ink); }
+  .right-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .expect { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .expect b { color: var(--ink); }
+  .run { background: var(--accent); color: #fff; border: 0; border-radius: 9px; padding: 7px 18px; font-weight: 700; }
+  .got { font-size: 13px; font-weight: 800; white-space: nowrap; }
+  .got.pass { color: var(--ok); } .got.fail { color: var(--bad); }
+  .hint { font-size: 14px; color: var(--bad); margin-top: 4px; font-weight: 600; }
+
+  /* result side */
+  .side { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 14px; }
+  @media (max-width: 980px) { .side { position: static; } }
+  .banner { border-radius: 14px; padding: 18px 22px; display: flex; gap: 16px; align-items: center; border: 1px solid var(--line); background: var(--panel); }
+  .banner .code { font-size: 34px; font-weight: 800; min-width: 70px; }
+  .banner .title { font-size: 19px; font-weight: 700; }
+  .banner .detail { font-size: 16px; color: var(--muted); margin-top: 2px; }
+  .banner.pass { background: var(--ok-soft); border-color: #b7e3cb; } .banner.pass .code { color: var(--ok); }
+  .banner.fail { background: var(--bad-soft); border-color: #f3b8b0; } .banner.fail .code { color: var(--bad); }
+  .banner.idle .code { color: var(--line); }
+
+  .seatbox { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; }
+  .seatnum { font-size: 44px; font-weight: 800; line-height: 1; }
+  .seatnum small { font-size: 20px; color: var(--muted); font-weight: 600; }
+  .ev-name { font-weight: 700; font-size: 17px; }
+  .ev-meta { color: var(--muted); font-size: 14px; }
+  .meter { height: 12px; background: var(--soft); border-radius: 6px; overflow: hidden; margin-top: 8px; }
+  .meter span { display: block; height: 100%; background: var(--accent); transition: width .4s; }
+  .pill { font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 999px; }
+  .pill.ACTIVE { background: var(--ok-soft); color: var(--ok); } .pill.CANCELLED { background: var(--bad-soft); color: var(--bad); }
+  .flash { animation: flash 1s ease-out; }
+  @keyframes flash { from { background: #fff3c4; } to { background: transparent; } }
+
+  .label { font-size: 12px; font-weight: 800; letter-spacing: 1px; color: var(--muted); margin-bottom: 6px; display: flex; gap: 8px; align-items: center; }
+  pre.json { margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+             font-size: 14.5px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 340px; overflow: auto; color: var(--ink); }
+  .reqline { font-size: 16px; font-weight: 700; margin-bottom: 8px; overflow-wrap: anywhere; }
+  .reqline .m { color: var(--accent); }
+  .hdr { font-size: 13.5px; color: var(--muted); margin-bottom: 8px; overflow-wrap: anywhere; }
+  .jk { color: var(--k); } .js { color: var(--s); } .jn { color: var(--n); } .jb { color: var(--b); }
+  .empty { color: var(--muted); font-size: 15px; }
+
+  details.adv { margin: 0 auto; max-width: 1400px; padding: 0 24px 40px; }
+  details.adv summary { cursor: pointer; font-weight: 700; color: var(--muted); padding: 8px 0; }
+  .adv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 980px) { .adv-grid { grid-template-columns: 1fr; } }
+  .hist { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow: auto; }
+  .hrow { display: grid; grid-template-columns: 48px 52px minmax(0, 1fr) 54px; gap: 8px; border: 0; background: transparent;
+          text-align: left; padding: 5px 6px; border-radius: 6px; font-size: 13.5px; color: var(--ink); }
+  .hrow:hover { background: var(--soft); }
+  .hrow .p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .st { font-weight: 800; } .st.s2 { color: var(--ok); } .st.s4 { color: var(--bad); } .st.s5 { color: var(--warn); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  select, input, textarea { font: inherit; font-size: 14px; border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; background: #fff; color: var(--ink); }
+  input { flex: 1; min-width: 160px; }
+  textarea { width: 100%; min-height: 80px; font-family: "SF Mono", Menlo, Consolas, monospace; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <h1>🎟️ Event Tickets API · Live demo</h1>
+    <div class="users" id="users"></div>
+  </div>
+  <nav id="tabs"></nav>
+</header>
+
+<main>
+  <section class="card" id="rule"></section>
+
+  <div class="side">
+    <div class="banner idle" id="banner">
+      <div class="code">—</div>
+      <div><div class="title">Press “Run” on step 1</div><div class="detail">The result of each request appears here.</div></div>
+    </div>
+
+    <div class="card" id="eventCard" hidden></div>
+
+    <div class="card">
+      <div class="label">REQUEST <span id="reqWho"></span></div>
+      <div id="request" class="empty">—</div>
+    </div>
+
+    <div class="card">
+      <div class="label">RESPONSE <span id="resMeta"></span></div>
+      <div id="response" class="empty">—</div>
+    </div>
+  </div>
+</main>
+
+<details class="adv">
+  <summary>Advanced: request history and custom request</summary>
+  <div class="adv-grid">
+    <div class="card"><div class="label">HISTORY (click to view again)</div><div class="hist" id="history"><div class="empty">No requests yet.</div></div></div>
+    <div class="card">
+      <div class="label">CUSTOM REQUEST</div>
+      <div class="row">
+        <select id="cAs"><option value="alice">as alice</option><option value="bob">as bob</option><option value="admin">as admin</option><option value="">no token</option></select>
+        <select id="cMethod"><option>GET</option><option>POST</option><option>PUT</option></select>
+        <input class="mono" id="cPath" value="/api/events">
+      </div>
+      <textarea id="cBody" placeholder='{"eventId": 1, "quantity": 2}'></textarea>
+      <div class="row" style="margin-top:8px"><button class="primary" id="cSend">Send</button></div>
+    </div>
+  </div>
+</details>
+
+<script>
+"use strict";
+
+// ---------- users ----------
+const USERS = {
+  alice: { password: "user123", role: "USER", color: "var(--alice)" },
+  bob:   { password: "user123", role: "USER", color: "var(--bob)" },
+  admin: { password: "admin123", role: "ADMIN", color: "var(--admin)" },
+};
+const tokens = {};
+
+// ---------- scenarios: one per business rule ----------
+// Each rule creates its own event first, so the demo works on any existing data.
+const ctx = {};
+const event = (name, seats, price = 25) =>
+  ({ name, eventDate: "2027-06-01T19:00:00", venue: "Demo Hall", price, totalSeats: seats });
+const need = (...keys) => { for (const k of keys) if (ctx[k] == null) throw new Error("Run the earlier steps first."); };
+
+const SCENARIOS = [
+  { no: "01", tab: "No overbooking", title: "No overbooking", event: "r1",
+    rule: "Booking more tickets than seats left returns 409 Conflict.", steps: [
+    { as: "admin", m: "POST", p: () => "/api/events", b: () => event("Rule 1 · only 5 seats", 5), expect: 201,
+      save: r => ctx.r1 = r.body.id, say: "Admin creates an event with only 5 seats" },
+    { as: "alice", m: "POST", p: () => "/api/bookings", b: () => (need("r1"), { eventId: ctx.r1, quantity: 4 }), expect: 201,
+      say: "Alice books 4 tickets", after: "1 seat left" },
+    { as: "bob", m: "POST", p: () => "/api/bookings", b: () => (need("r1"), { eventId: ctx.r1, quantity: 2 }), expect: 409,
+      say: "Bob tries to book 2 tickets", after: "only 1 seat left, so it's refused" },
+  ]},
+  { no: "02", tab: "Seats stay correct", title: "Seats stay correct", event: "r2",
+    rule: "Booking reduces seats, cancelling gives them back.", steps: [
+    { as: "admin", m: "POST", p: () => "/api/events", b: () => event("Rule 2 · 10 seats", 10), expect: 201,
+      save: r => ctx.r2 = r.body.id, say: "Admin creates an event with 10 seats" },
+    { as: "alice", m: "POST", p: () => "/api/bookings", b: () => (need("r2"), { eventId: ctx.r2, quantity: 3 }), expect: 201,
+      save: r => ctx.r2b = r.body.id, say: "Alice books 3 tickets", after: "seats go 10 → 7" },
+    { as: "alice", m: "POST", p: () => (need("r2b"), `/api/bookings/${ctx.r2b}/cancel`), expect: 200,
+      say: "Alice cancels her booking", after: "seats go back to 10" },
+    { as: "alice", m: "POST", p: () => (need("r2b"), `/api/bookings/${ctx.r2b}/cancel`), expect: 409,
+      say: "Alice cancels the same booking again", after: "refused, so seats can't be returned twice" },
+  ]},
+  { no: "03", tab: "Max 4 tickets", title: "Max 4 tickets per booking", event: "r3",
+    rule: "Quantity must be 1 to 4, otherwise 400 Bad Request.", steps: [
+    { as: "admin", m: "POST", p: () => "/api/events", b: () => event("Rule 3 · 50 seats", 50), expect: 201,
+      save: r => ctx.r3 = r.body.id, say: "Admin creates an event" },
+    { as: "alice", m: "POST", p: () => "/api/bookings", b: () => (need("r3"), { eventId: ctx.r3, quantity: 5 }), expect: 400,
+      say: "Alice tries to book 5 tickets", after: "too many" },
+    { as: "alice", m: "POST", p: () => "/api/bookings", b: () => (need("r3"), { eventId: ctx.r3, quantity: 0 }), expect: 400,
+      say: "Alice tries to book 0 tickets", after: "too few" },
+    { as: "alice", m: "POST", p: () => "/api/bookings", b: () => (need("r3"), { eventId: ctx.r3, quantity: 4 }), expect: 201,
+      say: "Alice books 4 tickets", after: "allowed" },
+  ]},
+  { no: "04", tab: "Price from server", title: "Price from the server", event: "r4",
+    rule: "Total = event price × quantity. Never trust a price sent by the client.", steps: [
+    { as: "admin", m: "POST", p: () => "/api/events", b: () => event("Rule 4 · price 25.00", 100, 25), expect: 201,
+      save: r => ctx.r4 = r.body.id, say: "Admin creates an event priced 25.00" },
+    { as: "alice", m: "POST", p: () => "/api/bookings",
+      b: () => (need("r4"), { eventId: ctx.r4, quantity: 3, unitPrice: 0.01, totalAmount: 0.01 }), expect: 201,
+      check: r => r.body.totalAmount === 75 || `expected total 75.00, got ${r.body.totalAmount}`,
+      say: "Alice books 3 tickets and sends a fake price of 0.01", after: "the server charges 3 × 25.00 = 75.00" },
+  ]},
+  { no: "05", tab: "Cancelled event", title: "No booking a cancelled event", event: "r5",
+    rule: "If the event status is CANCELLED, return 409 Conflict.", steps: [
+    { as: "admin", m: "POST", p: () => "/api/events", b: () => event("Rule 5 · will be cancelled", 20), expect: 201,
+      save: r => ctx.r5 = r.body.id, say: "Admin creates an event" },
+    { as: "admin", m: "POST", p: () => (need("r5"), `/api/events/${ctx.r5}/cancel`), expect: 200,
+      say: "Admin cancels the event" },
+    { as: "alice", m: "POST", p: () => "/api/bookings", b: () => (need("r5"), { eventId: ctx.r5, quantity: 1 }), expect: 409,
+      say: "Alice tries to book the cancelled event", after: "refused" },
+  ]},
+  { no: "06", tab: "Own bookings only", title: "Only your own bookings", event: "r6",
+    rule: "Customers can view or cancel only their own bookings, otherwise 403.", steps: [
+    { as: "admin", m: "POST", p: () => "/api/events", b: () => event("Rule 6 · ownership", 20), expect: 201,
+      save: r => ctx.r6 = r.body.id, say: "Admin creates an event" },
+    { as: "alice", m: "POST", p: () => "/api/bookings", b: () => (need("r6"), { eventId: ctx.r6, quantity: 2 }), expect: 201,
+      save: r => ctx.r6b = r.body.id, say: "Alice books 2 tickets" },
+    { as: "bob", m: "GET", p: () => (need("r6b"), `/api/bookings/${ctx.r6b}`), expect: 403,
+      say: "Bob tries to view Alice's booking", after: "forbidden" },
+    { as: "bob", m: "POST", p: () => (need("r6b"), `/api/bookings/${ctx.r6b}/cancel`), expect: 403,
+      say: "Bob tries to cancel Alice's booking", after: "forbidden" },
+    { as: "alice", m: "GET", p: () => (need("r6b"), `/api/bookings/${ctx.r6b}`), expect: 200,
+      say: "Alice views her own booking", after: "allowed" },
+  ]},
+  { no: "+", tab: "Security", title: "Login and roles", event: null,
+    rule: "No token → 401 Unauthorized. Only ADMIN can create events, otherwise 403 Forbidden.", steps: [
+    { as: null, m: "GET", p: () => "/api/events", expect: 401, say: "Someone calls the API without logging in" },
+    { as: "bob", m: "POST", p: () => "/api/events", b: () => event("Created by a customer?", 10), expect: 403,
+      say: "Bob (a customer) tries to create an event", after: "forbidden" },
+    { as: "admin", m: "POST", p: () => "/api/events", b: () => event("Created by admin", 10), expect: 201,
+      say: "Admin creates an event", after: "allowed" },
+  ]},
+];
+
+// ---------- helpers ----------
+const STATUS_TEXT = { 200: "OK", 201: "Created", 400: "Bad Request", 401: "Unauthorized", 403: "Forbidden",
+                      404: "Not Found", 409: "Conflict", 500: "Server Error" };
+const el = (tag, attrs = {}, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === "class") n.className = v;
+    else if (k === "style") n.style.cssText = v;
+    else if (k === "html") n.innerHTML = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) n.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  return n;
+};
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function jsonHtml(value) {
+  // Escape first, then colour keys/strings/numbers/booleans.
+  return esc(JSON.stringify(value, null, 2)).replace(
+    /"((?:\\.|[^"\\])*)"(\s*:)?|(-?\b\d+(?:\.\d+)?)\b|\b(true|false|null)\b/g,
+    (m, str, colon, num, lit) => {
+      if (str !== undefined) return colon ? `<span class="jk">"${str}"</span>${colon}` : `<span class="js">"${str}"</span>`;
+      if (num !== undefined) return `<span class="jn">${num}</span>`;
+      return `<span class="jb">${lit}</span>`;
+    });
+}
+const who = as => el("span", { class: "who", style: `background:${as ? USERS[as].color : "var(--anon)"}` }, as || "no login");
+
+// ---------- HTTP ----------
+const history = [];
+async function login(user) {
+  const r = await http("POST", "/api/auth/login", { username: user, password: USERS[user].password }, null, { show: false });
+  if (r.status === 200) tokens[user] = r.body.accessToken;
+  renderUsers();
+  return r;
+}
+async function http(method, path, body, as, { show = true, record = true } = {}) {
+  if (as && !tokens[as]) await login(as);
+  const headers = {};
+  if (body != null) headers["Content-Type"] = "application/json";
+  if (as) headers.Authorization = "Bearer " + tokens[as];
+  const t0 = performance.now();
+  let status = 0, parsed = null, text = "";
+  try {
+    const res = await fetch(path, { method, headers, body: body == null ? undefined : JSON.stringify(body) });
+    status = res.status; text = await res.text();
+    try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
+  } catch (err) { text = "Cannot reach the API: " + err.message; }
+  const entry = { method, path, body, as, headers, status, response: parsed, text, ms: Math.round(performance.now() - t0) };
+  if (record) { history.unshift(entry); renderHistory(); }
+  if (show) showExchange(entry);
+  return { status, body: parsed, entry };
+}
+
+// ---------- state + running ----------
+let current = 0;
+const results = {}; // "si-ti" -> { ok, status, hint }
+
+async function runStep(si, ti) {
+  const step = SCENARIOS[si].steps[ti];
+  const key = `${si}-${ti}`;
+  let path, body;
+  try { path = step.p(); body = step.b ? step.b() : undefined; }
+  catch (err) { results[key] = { ok: false, status: "–", hint: err.message }; renderRule(); return false; }
+  results[key] = { ok: null };
+  renderRule(ti);
+  const r = await http(step.m, path, body, step.as);
+  let ok = r.status === step.expect, hint = ok ? "" : `Expected ${step.expect}, got ${r.status}`;
+  if (ok && step.check) { const c = step.check(r); if (c !== true) { ok = false; hint = c; } }
+  if (ok && step.save) step.save(r);
+  results[key] = { ok, status: r.status, hint };
+  showBanner(step, r, ok);
+  if (si === current) { renderRule(ti); await renderEvent(); }
+  renderTabs();
+  return ok;
+}
+async function runAll(si) { for (let ti = 0; ti < SCENARIOS[si].steps.length; ti++) await runStep(si, ti); }
+function resetRule(si) {
+  SCENARIOS[si].steps.forEach((_, ti) => delete results[`${si}-${ti}`]);
+  if (SCENARIOS[si].event) for (const k of Object.keys(ctx)) if (k.startsWith(SCENARIOS[si].event)) delete ctx[k];
+  renderRule(); renderTabs(); renderEvent();
+}
+
+// ---------- rendering ----------
+function renderUsers() {
+  document.getElementById("users").replaceChildren(...Object.entries(USERS).map(([name, u]) =>
+    el("button", { class: "user" + (tokens[name] ? " in" : ""), onclick: () => login(name), title: "Log in again" },
+      el("span", { class: "avatar", style: `background:${u.color}` }, name[0].toUpperCase()),
+      el("span", {}, el("b", {}, name), " ", el("small", {}, tokens[name] ? `${u.role} · logged in` : `${u.role}`)))));
+}
+
+function ruleState(si) {
+  const r = SCENARIOS[si].steps.map((_, ti) => results[`${si}-${ti}`]).filter(x => x && x.ok !== null);
+  if (!r.length) return "";
+  if (r.some(x => !x.ok)) return "fail";
+  return r.length === SCENARIOS[si].steps.length ? "pass" : "";
+}
+function renderTabs() {
+  document.getElementById("tabs").replaceChildren(...SCENARIOS.map((sc, si) =>
+    el("button", { class: "tab" + (si === current ? " on" : ""), onclick: () => { current = si; clearPanels(); renderAll(); } },
+      el("span", { class: "n" }, sc.no), sc.tab, el("span", { class: "dot " + ruleState(si) }))));
+}
+
+function nextStep(si) {
+  const i = SCENARIOS[si].steps.findIndex((_, ti) => !results[`${si}-${ti}`]);
+  return i;
+}
+
+function renderRule(running = -1) {
+  const sc = SCENARIOS[current], si = current;
+  const next = nextStep(si);
+  const steps = sc.steps.map((st, ti) => {
+    const res = results[`${si}-${ti}`];
+    const state = res && res.ok !== null ? (res.ok ? "pass" : "fail") : "";
+    const isCurrent = ti === running || (running < 0 && ti === next);
+    let path = "";
+    try { path = st.p(); } catch { path = "(uses the id from an earlier step)"; }
+    return el("div", { class: `step ${state} ${isCurrent ? "current" : ""}` },
+      el("div", { class: "num" }, state === "pass" ? "✓" : state === "fail" ? "✗" : ti + 1),
+      el("div", {},
+        el("div", { class: "say" }, who(st.as), st.say, st.after ? el("span", { style: "color:var(--muted);font-weight:500" }, ` → ${st.after}`) : null),
+        el("div", { class: "meta mono" }, el("span", { class: "m" }, st.m), " ", path),
+        res && res.hint ? el("div", { class: "hint" }, res.hint) : null),
+      el("div", { class: "right-side" },
+        el("div", { class: "expect" }, "expect ", el("b", {}, `${st.expect} ${STATUS_TEXT[st.expect] || ""}`)),
+        res && res.ok === null ? el("div", { class: "got" }, "running…")
+          : res ? el("div", { class: "got " + state }, `${res.ok ? "✓" : "✗"} got ${res.status}`)
+          : el("button", { class: "run", onclick: () => runStep(si, ti) }, "Run")));
+  });
+  document.getElementById("rule").replaceChildren(
+    el("div", { class: "rule-no" }, sc.no === "+" ? "EXTRA" : `RULE ${sc.no}`),
+    el("div", { class: "rule-title" }, sc.title),
+    el("p", { class: "rule-text" }, sc.rule),
+    el("div", { class: "rule-actions" },
+      el("button", { class: "primary", onclick: () => runAll(si) }, "▶ Run all steps"),
+      el("button", { class: "secondary", onclick: () => resetRule(si) }, "↺ Start this rule again")),
+    el("div", { class: "steps" }, steps));
+}
+
+function showBanner(step, r, ok) {
+  const detail = r.body && (r.body.detail || (r.body.errors && Object.entries(r.body.errors).map(([k, v]) => `${k}: ${v}`).join(", ")));
+  const extra = !detail && r.body && r.body.totalAmount != null ? `Total charged: ${r.body.totalAmount.toFixed(2)}` :
+                !detail && r.body && r.body.availableSeats != null ? `Seats left: ${r.body.availableSeats} / ${r.body.totalSeats}` : "";
+  document.getElementById("banner").className = "banner " + (ok ? "pass" : "fail");
+  document.getElementById("banner").replaceChildren(
+    el("div", { class: "code" }, r.status || "ERR"),
+    el("div", {},
+      el("div", { class: "title" }, `${STATUS_TEXT[r.status] || "No response"} ${ok ? "✓ as expected" : `✗ expected ${step.expect}`}`),
+      el("div", { class: "detail" }, detail || extra || step.say)));
+}
+
+function showExchange(e) {
+  const auth = e.headers.Authorization ? e.headers.Authorization.replace(/(Bearer \S{12})\S+(\S{6})/, "$1…$2") : "none (not logged in)";
+  document.getElementById("reqWho").replaceChildren(who(e.as));
+  document.getElementById("request").className = "";
+  document.getElementById("request").replaceChildren(
+    el("div", { class: "reqline mono" }, el("span", { class: "m" }, e.method), " ", e.path),
+    el("div", { class: "hdr mono" }, "Authorization: ", auth),
+    e.body != null ? el("pre", { class: "json", html: jsonHtml(e.body) }) : el("div", { class: "empty" }, "No body"));
+  const cls = "st s" + String(e.status)[0];
+  document.getElementById("resMeta").replaceChildren(
+    el("span", { class: cls }, `${e.status || "ERR"} ${STATUS_TEXT[e.status] || ""}`), el("span", { style: "font-weight:500" }, `· ${e.ms} ms`));
+  document.getElementById("response").className = "";
+  document.getElementById("response").replaceChildren(
+    e.response != null ? el("pre", { class: "json", html: jsonHtml(e.response) }) : el("pre", { class: "json" }, e.text || "(empty)"));
+}
+
+let lastSeats = null;
+async function renderEvent() {
+  const box = document.getElementById("eventCard");
+  const key = SCENARIOS[current].event;
+  const id = key && ctx[key];
+  if (!id) { box.hidden = true; return; }
+  const viewer = tokens.admin ? "admin" : "alice";
+  const r = await http("GET", `/api/events/${id}`, null, viewer, { show: false, record: false });
+  if (r.status !== 200) { box.hidden = true; return; }
+  const ev = r.body;
+  const sig = `${ev.id}:${ev.availableSeats}:${ev.status}`;
+  const changed = lastSeats && lastSeats.split(":")[0] === String(ev.id) && lastSeats !== sig;
+  lastSeats = sig;
+  const pct = Math.round(100 * ev.availableSeats / ev.totalSeats);
+  box.hidden = false;
+  box.className = "card" + (changed ? " flash" : "");
+  box.replaceChildren(
+    el("div", { class: "label" }, "EVENT USED IN THIS RULE"),
+    el("div", { class: "seatbox" },
+      el("div", { class: "seatnum" }, ev.availableSeats, el("small", {}, ` / ${ev.totalSeats}`)),
+      el("div", {},
+        el("div", { class: "ev-name" }, ev.name, " ", el("span", { class: "pill " + ev.status }, ev.status)),
+        el("div", { class: "ev-meta" }, `Seats left · Event #${ev.id} · Price ${ev.price.toFixed(2)}`),
+        el("div", { class: "meter" }, el("span", { style: `width:${pct}%` })))));
+}
+
+function renderHistory() {
+  const root = document.getElementById("history");
+  if (!history.length) { root.replaceChildren(el("div", { class: "empty" }, "No requests yet.")); return; }
+  root.replaceChildren(...history.slice(0, 80).map(e =>
+    el("button", { class: "hrow", onclick: () => showExchange(e) },
+      el("span", { class: "st s" + String(e.status)[0] }, e.status || "ERR"),
+      el("b", {}, e.method), el("span", { class: "p mono" }, e.path), el("span", { style: "color:var(--muted)" }, e.as || "–"))));
+}
+
+function clearPanels() {
+  const banner = document.getElementById("banner");
+  banner.className = "banner idle";
+  banner.replaceChildren(el("div", { class: "code" }, "—"),
+    el("div", {}, el("div", { class: "title" }, "Press “Run” on step 1"), el("div", { class: "detail" }, "The result of each request appears here.")));
+  for (const id of ["request", "response"]) {
+    const box = document.getElementById(id);
+    box.className = "empty"; box.textContent = "—";
+  }
+  document.getElementById("reqWho").replaceChildren();
+  document.getElementById("resMeta").replaceChildren();
+}
+
+function renderAll() { renderTabs(); renderRule(); renderEvent(); }
+
+document.getElementById("cSend").addEventListener("click", async () => {
+  const as = document.getElementById("cAs").value || null;
+  const method = document.getElementById("cMethod").value;
+  const path = document.getElementById("cPath").value.trim();
+  const raw = document.getElementById("cBody").value.trim();
+  let body;
+  if (raw && method !== "GET") { try { body = JSON.parse(raw); } catch { alert("The body is not valid JSON."); return; } }
+  const r = await http(method, path, body, as);
+  showBanner({ expect: r.status, say: `${method} ${path}` }, r, true);
+});
+
+renderUsers();
+renderAll();
+
+// Self-test: open /#selftest to run every rule automatically (used to verify this page).
+if (location.hash === "#selftest") {
+  (async () => {
+    for (let si = 0; si < SCENARIOS.length; si++) { current = si; renderAll(); await runAll(si); }
+    const all = Object.entries(results);
+    const out = el("pre", { id: "selftest" },
+      `SELFTEST ${all.filter(([, r]) => r.ok).length}/${all.length} passed\n` +
+      all.map(([k, r]) => `${k}: ${r.ok ? "PASS" : "FAIL"} ${r.status} ${r.hint || ""}`).join("\n"));
+    out.hidden = true;
+    document.body.append(out);
+    current = 0; renderAll();
+  })();
+}
+</script>
+</body>
+</html>
