@@ -42,6 +42,8 @@ dependencies {
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     runtimeOnly 'org.postgresql:postgresql'
+    // In-memory database for the demo on PCs without PostgreSQL (profile "h2"); also used by the tests
+    runtimeOnly 'com.h2database:h2'
     providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
@@ -49,7 +51,6 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
-    testRuntimeOnly 'com.h2database:h2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

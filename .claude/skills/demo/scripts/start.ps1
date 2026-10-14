@@ -1,20 +1,31 @@
-# Windows version of start.sh: Docker -> PostgreSQL (port 5433) -> Spring Boot app -> prints the demo URL.
+# Windows version of start.sh: database -> Spring Boot app -> prints the demo URL.
 # Usage (from the repo root):
-#   powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\demo\scripts\start.ps1 [-Open] [-Reset] [-Port 8095]
-#   -Reset deletes the database container first, so Flyway recreates the tables and the original seed data.
+#   powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\demo\scripts\start.ps1 [-Open] [-Reset] [-Port 8095] [-Database auto|docker|local|h2]
+#   -Database auto (default) picks the first that works:
+#       docker  PostgreSQL in a Docker container on port 5433 (opens Docker Desktop if it is installed but closed)
+#       local   a PostgreSQL already installed on this PC (port -LocalDbPort, default 5432), database/user "eventtickets"
+#       h2      built-in in-memory database: needs nothing but Java; data resets when the app restarts
+#   -Reset  docker: deletes the container so Flyway recreates the tables and seed data (h2 always starts fresh)
 # Keep this file plain ASCII: Windows PowerShell 5.1 misreads UTF-8 files without a BOM.
-param([switch]$Open, [switch]$Reset, [int]$Port = 0)
+param(
+  [switch]$Open,
+  [switch]$Reset,
+  [int]$Port = 0,
+  [ValidateSet('auto', 'docker', 'local', 'h2')][string]$Database = 'auto',
+  [int]$LocalDbPort = 5432
+)
 
 $ErrorActionPreference = 'Continue'
-$Root  = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
-$App   = Join-Path $Root 'eventtickets'
-$State = Join-Path $App 'build\demo'
-$Log   = Join-Path $State 'app.log'
+$Root   = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
+$App    = Join-Path $Root 'eventtickets'
+$State  = Join-Path $App 'build\demo'
+$Log    = Join-Path $State 'app.log'
 $ErrLog = Join-Path $State 'app.err.log'
-$Db    = 'eventtickets-pg'
+$Db     = 'eventtickets-pg'
 
 function Say($m)  { Write-Host "> $m" -ForegroundColor Cyan }
 function Ok($m)   { Write-Host "OK $m" -ForegroundColor Green }
+function Warn($m) { Write-Host "! $m" -ForegroundColor Yellow }
 function Fail($m) { Write-Host "ERROR $m" -ForegroundColor Red; exit 1 }
 
 function Test-PortInUse($p) {
@@ -23,12 +34,25 @@ function Test-PortInUse($p) {
 function Get-HttpStatus($url) {
   try { return (Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 5).StatusCode } catch { return 0 }
 }
-function Test-Docker { docker info *> $null; return ($LASTEXITCODE -eq 0) }
+function Test-DockerReady {
+  if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { return $false }
+  docker info *> $null
+  return ($LASTEXITCODE -eq 0)
+}
+function Start-DockerIfInstalled {
+  if (Test-DockerReady) { return $true }
+  $dockerExe = Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'
+  if (-not (Test-Path $dockerExe)) { return $false }
+  Say 'Docker is not running, opening Docker Desktop...'
+  Start-Process $dockerExe
+  for ($i = 0; $i -lt 90; $i++) { if (Test-DockerReady) { return $true }; Start-Sleep -Seconds 2 }
+  return $false
+}
 
 if (-not (Test-Path (Join-Path $App 'gradlew.bat'))) { Fail "Project not found at $App" }
 New-Item -ItemType Directory -Force -Path $State | Out-Null
 
-# 0. Reset: stop the app first (the database is deleted after Docker is up, below)
+# 0. Reset: stop the app first (the data itself is reset below, once the database is chosen)
 if ($Reset) { & (Join-Path $PSScriptRoot 'stop.ps1') | Out-Null }
 
 # Already running?
@@ -42,39 +66,58 @@ if (-not $Reset -and (Test-Path $portFile)) {
   }
 }
 
-# 1. Docker
-if (-not (Test-Docker)) {
-  Say 'Docker is not running, opening Docker Desktop...'
-  $dockerExe = Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'
-  if (Test-Path $dockerExe) { Start-Process $dockerExe } else { Fail 'Docker Desktop not found. Install it or start it manually.' }
-  for ($i = 0; $i -lt 90; $i++) { if (Test-Docker) { break }; Start-Sleep -Seconds 2 }
-  if (-not (Test-Docker)) { Fail 'Docker did not start within 3 minutes.' }
+# 1. Choose the database
+$mode = $null
+switch ($Database) {
+  'docker' { if (Start-DockerIfInstalled) { $mode = 'docker' } else { Fail 'Docker is not available (use -Database local or -Database h2).' } }
+  'local'  { if (Test-PortInUse $LocalDbPort) { $mode = 'local' } else { Fail "No PostgreSQL listening on port $LocalDbPort." } }
+  'h2'     { $mode = 'h2' }
+  default {
+    if (Start-DockerIfInstalled) { $mode = 'docker' }
+    elseif (Test-PortInUse $LocalDbPort) { $mode = 'local'; Warn "Docker not available - using the PostgreSQL installed on this PC (port $LocalDbPort)" }
+    else { $mode = 'h2'; Warn 'No Docker and no PostgreSQL found - using the built-in H2 database (data resets when the app restarts)' }
+  }
 }
-Ok 'Docker is running'
+Set-Content -Path (Join-Path $State 'mode') -Value $mode
 
-if ($Reset) {
-  docker rm -f $Db *> $null
-  if ($LASTEXITCODE -eq 0) { Say "Deleted database container $Db (data reset)" }
+# 2. Prepare the database and the settings for the app
+Remove-Item Env:SPRING_PROFILES_ACTIVE -ErrorAction SilentlyContinue
+if ($mode -eq 'docker') {
+  Ok 'Docker is running'
+  if ($Reset) {
+    docker rm -f $Db *> $null
+    if ($LASTEXITCODE -eq 0) { Say "Deleted database container $Db (data reset)" }
+  }
+  $exists = (docker ps -a --format '{{.Names}}') -contains $Db
+  if ($exists) {
+    docker start $Db | Out-Null
+  } else {
+    Say "Creating database container $Db on port 5433..."
+    docker run -d --name $Db -e POSTGRES_DB=eventtickets -e POSTGRES_USER=eventtickets `
+      -e POSTGRES_PASSWORD=eventtickets -p 5433:5432 postgres:17 | Out-Null
+    if ($LASTEXITCODE -ne 0) { Fail 'Could not create the database container (is port 5433 free?).' }
+  }
+  $ready = $false
+  for ($i = 0; $i -lt 30; $i++) {
+    docker exec $Db pg_isready -U eventtickets -q *> $null
+    if ($LASTEXITCODE -eq 0) { $ready = $true; break }
+    Start-Sleep -Seconds 1
+  }
+  if (-not $ready) { Fail 'PostgreSQL did not become ready.' }
+  Ok 'Database: PostgreSQL in Docker (localhost:5433)'
+  $env:DB_URL = 'jdbc:postgresql://localhost:5433/eventtickets'
 }
-
-# 2. Database (create the container the first time)
-$exists = (docker ps -a --format '{{.Names}}') -contains $Db
-if ($exists) {
-  docker start $Db | Out-Null
-} else {
-  Say "Creating database container $Db on port 5433..."
-  docker run -d --name $Db -e POSTGRES_DB=eventtickets -e POSTGRES_USER=eventtickets `
-    -e POSTGRES_PASSWORD=eventtickets -p 5433:5432 postgres:17 | Out-Null
-  if ($LASTEXITCODE -ne 0) { Fail 'Could not create the database container (is port 5433 free?).' }
+elseif ($mode -eq 'local') {
+  if ($Reset) { Warn '-Reset does not touch a local PostgreSQL. To reset it, run in pgAdmin on database eventtickets: DROP SCHEMA public CASCADE; CREATE SCHEMA public;' }
+  Ok "Database: local PostgreSQL (localhost:$LocalDbPort, database eventtickets)"
+  $env:DB_URL = "jdbc:postgresql://localhost:$LocalDbPort/eventtickets"
+  if (-not $env:DB_USERNAME) { $env:DB_USERNAME = 'eventtickets' }
+  if (-not $env:DB_PASSWORD) { $env:DB_PASSWORD = 'eventtickets' }
 }
-$ready = $false
-for ($i = 0; $i -lt 30; $i++) {
-  docker exec $Db pg_isready -U eventtickets -q *> $null
-  if ($LASTEXITCODE -eq 0) { $ready = $true; break }
-  Start-Sleep -Seconds 1
+else {
+  Ok 'Database: built-in H2 (in memory, fresh seed data on every start)'
+  $env:SPRING_PROFILES_ACTIVE = 'h2'
 }
-if (-not $ready) { Fail 'PostgreSQL did not become ready.' }
-Ok 'PostgreSQL ready on localhost:5433'
 
 # 3. Free port (8080/8081 are often used by other projects)
 if ($Port -gt 0) {
@@ -89,7 +132,6 @@ if ($Port -gt 0) {
 # 4. Start the app in the background
 Say "Starting the app on port $use (log: $Log)..."
 $env:SERVER_PORT = "$use"
-$env:DB_URL = 'jdbc:postgresql://localhost:5433/eventtickets'
 if (-not $env:JWT_SECRET) { $env:JWT_SECRET = 'local-dev-secret-please-change-0123456789abcdef' }
 Remove-Item $Log, $ErrLog -ErrorAction SilentlyContinue
 $proc = Start-Process -FilePath (Join-Path $App 'gradlew.bat') -ArgumentList 'bootRun', '--quiet' `
@@ -105,8 +147,20 @@ for ($i = 0; $i -lt 240; $i++) {
     if ((Test-Path $f) -and (Select-String -Path $f -Pattern 'APPLICATION FAILED TO START', 'BUILD FAILED', 'FAILURE:' -Quiet)) { $failed = $true }
   }
   if ($failed) {
-    Get-Content $Log, $ErrLog -ErrorAction SilentlyContinue | Select-String -Pattern 'Description:|Reason:|What went wrong' -Context 0, 4 | Select-Object -First 3
     Remove-Item $portFile -ErrorAction SilentlyContinue
+    $dbProblem = ($mode -eq 'local') -and (Select-String -Path $Log -Pattern 'password authentication failed', 'does not exist' -Quiet)
+    if ($dbProblem) {
+      Write-Host ''
+      Write-Host '  The local PostgreSQL needs the project database once. In pgAdmin, open the Query Tool on'
+      Write-Host '  the "postgres" database (as the postgres user) and run:'
+      Write-Host ''
+      Write-Host "      CREATE USER eventtickets WITH PASSWORD 'eventtickets';" -ForegroundColor Yellow
+      Write-Host '      CREATE DATABASE eventtickets OWNER eventtickets;' -ForegroundColor Yellow
+      Write-Host ''
+      Write-Host '  Then start again. (Or use -Database h2 to run without PostgreSQL.)'
+    } else {
+      Get-Content $Log, $ErrLog -ErrorAction SilentlyContinue | Select-String -Pattern 'Description:|Reason:|What went wrong' -Context 0, 4 | Select-Object -First 3
+    }
     Fail "The app failed to start. Logs: $Log and $ErrLog"
   }
   Start-Sleep -Seconds 1
@@ -120,7 +174,8 @@ Ok 'App running'
 Write-Host ''
 Write-Host "  Demo page : http://localhost:$use/"
 Write-Host "  Swagger   : http://localhost:$use/swagger-ui.html"
+Write-Host "  Database  : $mode"
 Write-Host '  Users     : admin/admin123 - alice/user123 - dara/user123'
-Write-Host '  Stop      : demo-stop.cmd  (or stop.ps1 -Db to also stop PostgreSQL)'
+Write-Host '  Stop      : demo-stop.cmd  (or stop.ps1 -Db to also stop the Docker database)'
 if ($Open) { Start-Process "http://localhost:$use/" }
 exit 0

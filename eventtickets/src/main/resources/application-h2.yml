@@ -1,0 +1,7 @@
+# Demo fallback when no PostgreSQL is available: SPRING_PROFILES_ACTIVE=h2
+# In-memory H2 in PostgreSQL mode. Flyway runs the same migrations; data resets when the app restarts.
+spring:
+  datasource:
+    url: jdbc:h2:mem:eventtickets;MODE=PostgreSQL;DATABASE_TO_UPPER=true;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
