@@ -15,7 +15,8 @@ server-side price, no booking a cancelled event, own bookings only).
 
 Requires **Java 21**. The start scripts pick the database automatically:
 **Docker** (PostgreSQL container on port 5433) if available → else a **PostgreSQL installed on the PC** (port 5432) →
-else the built-in **H2** in-memory database (no install needed; data resets on restart).
+else the built-in **H2** database (no install needed; data resets on restart). The start output prints how to connect
+DBeaver to whichever database it chose — for H2 that is a JDBC URL with user `sa` and no password.
 The first start downloads Gradle (and PostgreSQL for Docker), so it takes a few minutes.
 
 Using an installed PostgreSQL? Create the project database once (pgAdmin Query Tool, as the postgres user):

@@ -103,8 +103,11 @@ case "$MODE" in
             DB_USERNAME="${DB_USERNAME:-eventtickets}" DB_PASSWORD="${DB_PASSWORD:-eventtickets}")
     ;;
   h2)
-    ok "Database: built-in H2 (in memory, fresh seed data on every start)"
-    DB_ENV=(SPRING_PROFILES_ACTIVE=h2)
+    # H2 keeps its data in a file (so DBeaver can open it); delete it so every start has fresh seed data
+    H2_FILE="$STATE/h2/eventtickets"
+    rm -rf "$STATE/h2"
+    ok "Database: built-in H2 (fresh seed data on every start)"
+    DB_ENV=(SPRING_PROFILES_ACTIVE=h2 H2_DB_FILE="$H2_FILE")
     ;;
 esac
 
@@ -166,7 +169,7 @@ echo "  Database  : $MODE"
 case "$MODE" in
   docker) echo "  DBeaver   : PostgreSQL · host localhost · port 5433 · database eventtickets · user eventtickets · password eventtickets" ;;
   local)  echo "  DBeaver   : PostgreSQL · host localhost · port $LOCAL_DB_PORT · database eventtickets · user ${DB_USERNAME:-eventtickets} · password ${DB_PASSWORD:-eventtickets}" ;;
-  h2)     echo "  DBeaver   : not available (H2 runs inside the app's memory)" ;;
+  h2)     echo "  DBeaver   : H2 Embedded V.2 · JDBC URL jdbc:h2:file:$H2_FILE;MODE=PostgreSQL;DATABASE_TO_UPPER=true;AUTO_SERVER=TRUE · user sa · no password" ;;
 esac
 echo "  Users     : admin/admin123 · alice/user123 · dara/user123"
 echo "  Stop      : .claude/skills/demo/scripts/stop.sh   (add --db to also stop the Docker database)"

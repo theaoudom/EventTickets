@@ -31,8 +31,9 @@ Run state (port, pid, log, chosen database in `mode`) is kept in `eventtickets/b
    missing the script prints the two SQL lines to run once in pgAdmin or psql as the postgres user:
    `CREATE USER eventtickets WITH PASSWORD 'eventtickets';` and `CREATE DATABASE eventtickets OWNER eventtickets;`
    Never create them yourself with the user's postgres password unless the user gives it and asks you to.
-3. **h2** — the built-in in-memory database (Spring profile `h2`). Needs only Java; same Flyway migrations and rules;
-   data resets whenever the app restarts. Say so when it is chosen.
+3. **h2** — the built-in H2 database (Spring profile `h2`), stored in `eventtickets/build/demo/h2/` with `AUTO_SERVER`
+   so DBeaver can open it while the app runs. Needs only Java; same Flyway migrations and rules; the scripts delete
+   the file on every start, so data resets whenever the app restarts. Say so when it is chosen.
 
 `reset` only deletes data in the Docker database; for `local` the script prints the SQL to reset it instead.
 
@@ -45,11 +46,12 @@ start; if missing, the demo has not been started on this PC — start it first) 
 |---|---|---|---|---|---|
 | `docker` | PostgreSQL | localhost | **5433** | eventtickets | eventtickets / eventtickets |
 | `local` | PostgreSQL | localhost | value in `local_db_port` (default **5432**) | eventtickets | eventtickets / eventtickets (or the `DB_USERNAME` / `DB_PASSWORD` used) |
-| `h2` | — | not reachable: H2 lives in the app's memory. Suggest the local PostgreSQL (two SQL lines above) if they need DBeaver | | | |
+| `h2` | **H2 Embedded V.2** (paste the JDBC URL instead of host/port) | — | — | the full path printed by the start script: `jdbc:h2:file:<repo>/eventtickets/build/demo/h2/eventtickets;MODE=PostgreSQL;DATABASE_TO_UPPER=true;AUTO_SERVER=TRUE` | `sa` / empty password |
 
 Tables: `tb_user`, `tb_event`, `tb_booking`, `flyway_schema_history` in schema `public` (PostgreSQL shows them lowercase).
 
-If DBeaver reports an error, match it: "Connection refused" → wrong port, or the database is not running, or mode is `h2`;
+If DBeaver reports an error, match it: "Connection refused" → wrong port or the database is not running; for `h2`, the URL must match the printed one
+exactly (including `AUTO_SERVER=TRUE`) and the app must be running; in H2 the tables show in UPPERCASE under PUBLIC;
 "password authentication failed" / "database eventtickets does not exist" → the two SQL lines were not run;
 driver download fails → needs internet once.
 

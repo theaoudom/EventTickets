@@ -116,8 +116,13 @@ elseif ($mode -eq 'local') {
   if (-not $env:DB_PASSWORD) { $env:DB_PASSWORD = 'eventtickets' }
 }
 else {
-  Ok 'Database: built-in H2 (in memory, fresh seed data on every start)'
+  # H2 keeps its data in a file (so DBeaver can open it); delete it so every start has fresh seed data
+  $h2Dir = Join-Path $State 'h2'
+  Remove-Item $h2Dir -Recurse -Force -ErrorAction SilentlyContinue
+  $h2File = (Join-Path $h2Dir 'eventtickets') -replace '\\', '/'
+  Ok 'Database: built-in H2 (fresh seed data on every start)'
   $env:SPRING_PROFILES_ACTIVE = 'h2'
+  $env:H2_DB_FILE = $h2File
 }
 
 # 3. Free port (8080/8081 are often used by other projects)
@@ -178,7 +183,10 @@ Write-Host "  Swagger   : http://localhost:$use/swagger-ui.html"
 Write-Host "  Database  : $mode"
 if ($mode -eq 'docker') { Write-Host '  DBeaver   : PostgreSQL - host localhost - port 5433 - database eventtickets - user eventtickets - password eventtickets' }
 elseif ($mode -eq 'local') { Write-Host "  DBeaver   : PostgreSQL - host localhost - port $LocalDbPort - database eventtickets - user $($env:DB_USERNAME) - password $($env:DB_PASSWORD)" }
-else { Write-Host "  DBeaver   : not available (H2 runs inside the app's memory)" }
+else {
+  Write-Host '  DBeaver   : New connection - H2 Embedded V.2 - user sa - no password - JDBC URL:'
+  Write-Host "              jdbc:h2:file:$($env:H2_DB_FILE);MODE=PostgreSQL;DATABASE_TO_UPPER=true;AUTO_SERVER=TRUE"
+}
 Write-Host '  Users     : admin/admin123 - alice/user123 - dara/user123'
 Write-Host '  Stop      : demo-stop.cmd  (or stop.ps1 -Db to also stop the Docker database)'
 if ($Open) { Start-Process "http://localhost:$use/" }
