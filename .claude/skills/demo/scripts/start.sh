@@ -74,6 +74,7 @@ case "$DATABASE" in
     fi ;;
 esac
 echo "$MODE" >"$STATE/mode"
+echo "$LOCAL_DB_PORT" >"$STATE/local_db_port"
 
 # 2. Prepare the database
 DB_ENV=()
@@ -162,6 +163,11 @@ echo
 echo "  Demo page : http://localhost:$port/"
 echo "  Swagger   : http://localhost:$port/swagger-ui.html"
 echo "  Database  : $MODE"
+case "$MODE" in
+  docker) echo "  DBeaver   : PostgreSQL · host localhost · port 5433 · database eventtickets · user eventtickets · password eventtickets" ;;
+  local)  echo "  DBeaver   : PostgreSQL · host localhost · port $LOCAL_DB_PORT · database eventtickets · user ${DB_USERNAME:-eventtickets} · password ${DB_PASSWORD:-eventtickets}" ;;
+  h2)     echo "  DBeaver   : not available (H2 runs inside the app's memory)" ;;
+esac
 echo "  Users     : admin/admin123 · alice/user123 · dara/user123"
 echo "  Stop      : .claude/skills/demo/scripts/stop.sh   (add --db to also stop the Docker database)"
 $OPEN && open "http://localhost:$port/"

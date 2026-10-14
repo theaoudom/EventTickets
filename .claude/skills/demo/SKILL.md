@@ -1,6 +1,6 @@
 ---
 name: demo
-description: Start, stop or reset the Event Tickets API demo in this project — opens Docker if needed, starts PostgreSQL (container eventtickets-pg, port 5433), runs the Spring Boot app on a free port, checks the demo page and prints its URL. Use when asked to start, run, open, restart, reset or stop the demo/app/project. Usage: /demo [start | stop | stop --db | restart | reset | status]
+description: Start, stop or reset the Event Tickets API demo in this project — picks the database (PostgreSQL in Docker on port 5433, else a PostgreSQL installed on the PC, else built-in H2), runs the Spring Boot app on a free port, checks the demo page and prints its URL. Use when asked to start, run, open, restart, reset or stop the demo/app/project, or how to connect DBeaver / see the database tables. Usage: /demo [start | stop | stop --db | restart | reset | status | db | h2]
 ---
 
 # Event Tickets demo
@@ -36,6 +36,23 @@ Run state (port, pid, log, chosen database in `mode`) is kept in `eventtickets/b
 
 `reset` only deletes data in the Docker database; for `local` the script prints the SQL to reset it instead.
 
+## Database connection (DBeaver, pgAdmin, psql)
+
+When the user asks how to see the tables or connect DBeaver, read `eventtickets/build/demo/mode` (written by the last
+start; if missing, the demo has not been started on this PC — start it first) and give these settings:
+
+| mode | DBeaver: New connection → | Host | Port | Database | User / password |
+|---|---|---|---|---|---|
+| `docker` | PostgreSQL | localhost | **5433** | eventtickets | eventtickets / eventtickets |
+| `local` | PostgreSQL | localhost | value in `local_db_port` (default **5432**) | eventtickets | eventtickets / eventtickets (or the `DB_USERNAME` / `DB_PASSWORD` used) |
+| `h2` | — | not reachable: H2 lives in the app's memory. Suggest the local PostgreSQL (two SQL lines above) if they need DBeaver | | | |
+
+Tables: `tb_user`, `tb_event`, `tb_booking`, `flyway_schema_history` in schema `public` (PostgreSQL shows them lowercase).
+
+If DBeaver reports an error, match it: "Connection refused" → wrong port, or the database is not running, or mode is `h2`;
+"password authentication failed" / "database eventtickets does not exist" → the two SQL lines were not run;
+driver download fails → needs internet once.
+
 ## Which scripts to use
 
 Check the OS first: run `uname -s` (on Windows, Claude Code's shell is Git Bash and prints `MINGW…`/`MSYS…`;
@@ -55,6 +72,7 @@ Pick the action from the argument (no argument → `start`):
 | `stop --db` | `stop.sh --db` | `stop.ps1 -Db` |
 | `restart` | `stop.sh`, then `start.sh --open` | `stop.ps1`, then `start.ps1 -Open` |
 | `reset` | `start.sh --reset --open` | `start.ps1 -Reset -Open` |
+| `db` (DBeaver / database connection) | read `eventtickets/build/demo/mode` (and `local_db_port`), then answer from the table in "Database connection" below — no script needed | same |
 | `h2` (no database needed) | `start.sh --database=h2 --open` | `start.ps1 -Database h2 -Open` |
 | `status` | `cat eventtickets/build/demo/port`, then `curl -s -o /dev/null -w '%{http_code}' http://localhost:<port>/`; `docker ps --filter name=eventtickets-pg` | same commands (they work in Git Bash) |
 
@@ -66,11 +84,12 @@ and leaves the app running in the background.
 
 ## Report back
 
-On success, give the user the demo URL and the logins in a few lines:
+On success, give the user the demo URL, the logins and the DBeaver line the script printed, in a few lines:
 
 ```
-Demo running: http://localhost:<port>/
+Demo running: http://localhost:<port>/   (database: <mode>)
 Logins: admin/admin123 · alice/user123 · dara/user123
+DBeaver: PostgreSQL · localhost:<db port> · database eventtickets · user eventtickets / eventtickets
 Stop with /demo stop
 ```
 

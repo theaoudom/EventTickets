@@ -79,6 +79,7 @@ switch ($Database) {
   }
 }
 Set-Content -Path (Join-Path $State 'mode') -Value $mode
+Set-Content -Path (Join-Path $State 'local_db_port') -Value $LocalDbPort
 
 # 2. Prepare the database and the settings for the app
 Remove-Item Env:SPRING_PROFILES_ACTIVE -ErrorAction SilentlyContinue
@@ -175,6 +176,9 @@ Write-Host ''
 Write-Host "  Demo page : http://localhost:$use/"
 Write-Host "  Swagger   : http://localhost:$use/swagger-ui.html"
 Write-Host "  Database  : $mode"
+if ($mode -eq 'docker') { Write-Host '  DBeaver   : PostgreSQL - host localhost - port 5433 - database eventtickets - user eventtickets - password eventtickets' }
+elseif ($mode -eq 'local') { Write-Host "  DBeaver   : PostgreSQL - host localhost - port $LocalDbPort - database eventtickets - user $($env:DB_USERNAME) - password $($env:DB_PASSWORD)" }
+else { Write-Host "  DBeaver   : not available (H2 runs inside the app's memory)" }
 Write-Host '  Users     : admin/admin123 - alice/user123 - dara/user123'
 Write-Host '  Stop      : demo-stop.cmd  (or stop.ps1 -Db to also stop the Docker database)'
 if ($Open) { Start-Process "http://localhost:$use/" }
