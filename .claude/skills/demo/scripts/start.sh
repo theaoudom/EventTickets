@@ -104,7 +104,7 @@ ok "App running"
 echo
 echo "  Demo page : http://localhost:$port/"
 echo "  Swagger   : http://localhost:$port/swagger-ui.html"
-echo "  Users     : admin/admin123 · alice/user123 · bob/user123"
+echo "  Users     : admin/admin123 · alice/user123 · dara/user123"
 echo "  Stop      : .claude/skills/demo/scripts/stop.sh   (add --db to also stop PostgreSQL)"
 $OPEN && open "http://localhost:$port/"
 exit 0

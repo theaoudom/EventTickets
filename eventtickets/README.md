@@ -32,7 +32,7 @@ Flyway creates the tables and seeds:
 |------|----------|------|
 | admin | admin123 | ADMIN |
 | alice | user123 | USER |
-| bob | user123 | USER |
+| dara | user123 | USER |
 
 Events: `1` Angkor Jazz Night (100 seats, 25.00), `2` Phnom Penh Tech Summit (5 seats, 40.00),
 `3` Water Festival Concert (CANCELLED).
@@ -46,7 +46,7 @@ Build: `./gradlew bootWar` → `build/libs/eventtickets-0.0.1-SNAPSHOT.war`. Run
 
 Open http://localhost:8080/ (the app serves `src/main/resources/static/index.html`). One tab per business rule:
 
-- **Steps:** each rule's steps in order (admin creates an event, alice lists events, books, bob tries…), with the
+- **Steps:** each rule's steps in order (admin creates an event, alice lists events, books, dara tries…), with the
   expected status. **Run** sends a step as is; **Run all steps** runs the whole rule.
 - **Request panel:** click a step to open its request (user, method, URL, JSON body). Edit it if you like and press
   **Send**; an edited request is marked *EDITED*. **Reset** restores it.
@@ -84,7 +84,7 @@ Every error is an RFC 9457 `ProblemDetail` body (400, 401, 403, 404, 409, 500).
 ```bash
 login() { curl -s localhost:8080/api/auth/login -H 'Content-Type: application/json' \
   -d "{\"username\":\"$1\",\"password\":\"$2\"}" | sed -E 's/.*"accessToken":"([^"]+)".*/\1/'; }
-ALICE=$(login alice user123); BOB=$(login bob user123); ADMIN=$(login admin admin123)
+ALICE=$(login alice user123); DARA=$(login dara user123); ADMIN=$(login admin admin123)
 
 # List events
 curl -s localhost:8080/api/events -H "Authorization: Bearer $ALICE"
@@ -107,8 +107,8 @@ curl -s localhost:8080/api/bookings -H "Authorization: Bearer $ALICE" \
 curl -s localhost:8080/api/bookings -H "Authorization: Bearer $ALICE" \
   -H 'Content-Type: application/json' -d '{"eventId":3,"quantity":1}'
 
-# Rule 6: Bob opens Alice's booking 1 -> 403
-curl -s localhost:8080/api/bookings/1 -H "Authorization: Bearer $BOB"
+# Rule 6: Dara opens Alice's booking 1 -> 403
+curl -s localhost:8080/api/bookings/1 -H "Authorization: Bearer $DARA"
 
 # Rule 2: Alice cancels, seats come back
 curl -s -X POST localhost:8080/api/bookings/1/cancel -H "Authorization: Bearer $ALICE"

@@ -18,7 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Seed data (V2 migration): users admin, alice, bob.
+ * Seed data (V2 migration): users admin, alice, dara.
  * Event 1: 100 seats at 25.00. Event 2: 5 seats at 40.00. Event 3: CANCELLED.
  * Each test runs in a transaction that is rolled back.
  */
@@ -200,15 +200,15 @@ class EventTicketsApiTest {
     @Test
     void customerCannotViewOrCancelSomeoneElsesBooking() throws Exception {
         String alice = bearer("alice", "user123");
-        String bob = bearer("bob", "user123");
+        String dara = bearer("dara", "user123");
         String body = book(alice, 1, 2).andReturn().getResponse().getContentAsString();
         Integer bookingId = JsonPath.read(body, "$.id");
 
-        mvc.perform(get("/api/bookings/" + bookingId).header("Authorization", bob))
+        mvc.perform(get("/api/bookings/" + bookingId).header("Authorization", dara))
                 .andExpect(status().isForbidden());
-        mvc.perform(post("/api/bookings/" + bookingId + "/cancel").header("Authorization", bob))
+        mvc.perform(post("/api/bookings/" + bookingId + "/cancel").header("Authorization", dara))
                 .andExpect(status().isForbidden());
-        mvc.perform(get("/api/bookings").header("Authorization", bob))
+        mvc.perform(get("/api/bookings").header("Authorization", dara))
                 .andExpect(jsonPath("$.content.length()").value(0));
 
         mvc.perform(get("/api/bookings/" + bookingId).header("Authorization", alice))
@@ -221,7 +221,7 @@ class EventTicketsApiTest {
     @Test
     void adminCanSeeAllBookings() throws Exception {
         book(bearer("alice", "user123"), 1, 1);
-        book(bearer("bob", "user123"), 1, 1);
+        book(bearer("dara", "user123"), 1, 1);
         mvc.perform(get("/api/bookings").header("Authorization", bearer("admin", "admin123")))
                 .andExpect(jsonPath("$.content.length()").value(2));
     }

@@ -9,17 +9,18 @@ server-side price, no booking a cancelled event, own bookings only).
 | [`docs/`](docs/) | Project documents: [BRD](docs/BRD.md), [PRD](docs/PRD.md), [ERD](docs/ERD.md), [API Spec](docs/API-SPEC.md) |
 | [`eventtickets/`](eventtickets/) | The Spring Boot project. See its [README](eventtickets/README.md) for endpoints and curl examples |
 | [`Event-Tickets-API-Explanation.pdf`](Event-Tickets-API-Explanation.pdf) | Full explanation: setup, architecture, request flow, security, demo script, mentor Q&A |
-| [`.claude/skills/demo/`](.claude/skills/demo/) | `/demo` skill for Claude Code: starts PostgreSQL + the app and opens the demo page |
+| [`.claude/skills/demo/`](.claude/skills/demo/) | `/demo` skill for Claude Code (Mac and Windows): starts PostgreSQL + the app and opens the demo page |
 
 ## Run
 
-Requires Java 21 and Docker.
+Requires **Java 21** and **Docker Desktop** (running). The first start downloads PostgreSQL and Gradle, so it takes a few minutes.
 
-```bash
-bash .claude/skills/demo/scripts/start.sh --open   # PostgreSQL (port 5433) + app, opens the demo page
-bash .claude/skills/demo/scripts/stop.sh --db      # stop the app and the database
-```
+| | Start (opens the demo page) | Stop |
+|---|---|---|
+| **Claude Code** (Mac or Windows) | `/demo` · `/demo reset` for clean seed data | `/demo stop` |
+| **Windows** | double-click **`demo-start.cmd`** (or `demo-start.cmd reset`) | double-click **`demo-stop.cmd`** |
+| **Mac / Linux** | `bash .claude/skills/demo/scripts/start.sh --open` | `bash .claude/skills/demo/scripts/stop.sh --db` |
 
-Logins: `admin/admin123` (ADMIN), `alice/user123` and `bob/user123` (USER).
+Logins: `admin/admin123` (ADMIN), `alice/user123` and `dara/user123` (USER).
 
 Tests (no Docker needed): `cd eventtickets && ./gradlew test`

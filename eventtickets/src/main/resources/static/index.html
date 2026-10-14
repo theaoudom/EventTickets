@@ -10,7 +10,7 @@
     --bg: #f5f6f8; --panel: #ffffff; --ink: #172033; --muted: #5b6475; --line: #e1e5ec; --soft: #f1f3f7;
     --accent: #2457d6; --accent-soft: #e9effd;
     --ok: #13804f; --ok-soft: #e4f5ec; --bad: #c0392b; --bad-soft: #fdecea; --warn: #a75a00; --warn-soft: #fff3e0;
-    --alice: #7c3aed; --bob: #0e7490; --admin: #b45309; --anon: #6b7280;
+    --alice: #7c3aed; --dara: #0e7490; --admin: #b45309; --anon: #6b7280;
     --code-bg: #f7f8fa; --k: #1d4ed8; --s: #0f7a3f; --n: #b45309; --b: #9333ea;
   }
   * { box-sizing: border-box; }
@@ -185,7 +185,7 @@
     <div class="card">
       <div class="label">CUSTOM REQUEST</div>
       <div class="row">
-        <select id="cAs"><option value="alice">as alice</option><option value="bob">as bob</option><option value="admin">as admin</option><option value="">no token</option></select>
+        <select id="cAs"><option value="alice">as alice</option><option value="dara">as dara</option><option value="admin">as admin</option><option value="">no token</option></select>
         <select id="cMethod"><option>GET</option><option>POST</option><option>PUT</option></select>
         <input class="mono" id="cPath" value="/api/events">
       </div>
@@ -201,7 +201,7 @@
 // ---------- users ----------
 const USERS = {
   alice: { password: "user123", role: "USER", color: "var(--alice)" },
-  bob:   { password: "user123", role: "USER", color: "var(--bob)" },
+  dara:   { password: "user123", role: "USER", color: "var(--dara)" },
   admin: { password: "admin123", role: "ADMIN", color: "var(--admin)" },
 };
 const tokens = {};
@@ -220,8 +220,8 @@ const SCENARIOS = [
       save: r => ctx.r1 = r.body.id, say: "Admin creates an event with only 5 seats" },
     { as: "alice", m: "POST", p: () => "/api/bookings", b: () => (need("r1"), { eventId: ctx.r1, quantity: 4 }), expect: 201,
       say: "Alice books 4 tickets", after: "1 seat left" },
-    { as: "bob", m: "POST", p: () => "/api/bookings", b: () => (need("r1"), { eventId: ctx.r1, quantity: 2 }), expect: 409,
-      say: "Bob tries to book 2 tickets", after: "only 1 seat left, so it's refused" },
+    { as: "dara", m: "POST", p: () => "/api/bookings", b: () => (need("r1"), { eventId: ctx.r1, quantity: 2 }), expect: 409,
+      say: "Dara tries to book 2 tickets", after: "only 1 seat left, so it's refused" },
   ]},
   { no: "02", tab: "Seats stay correct", title: "Seats stay correct", event: "r2",
     rule: "Booking reduces seats, cancelling gives them back.", steps: [
@@ -269,18 +269,18 @@ const SCENARIOS = [
       save: r => ctx.r6 = r.body.id, say: "Admin creates an event" },
     { as: "alice", m: "POST", p: () => "/api/bookings", b: () => (need("r6"), { eventId: ctx.r6, quantity: 2 }), expect: 201,
       save: r => ctx.r6b = r.body.id, say: "Alice books 2 tickets" },
-    { as: "bob", m: "GET", p: () => (need("r6b"), `/api/bookings/${ctx.r6b}`), expect: 403,
-      say: "Bob tries to view Alice's booking", after: "forbidden" },
-    { as: "bob", m: "POST", p: () => (need("r6b"), `/api/bookings/${ctx.r6b}/cancel`), expect: 403,
-      say: "Bob tries to cancel Alice's booking", after: "forbidden" },
+    { as: "dara", m: "GET", p: () => (need("r6b"), `/api/bookings/${ctx.r6b}`), expect: 403,
+      say: "Dara tries to view Alice's booking", after: "forbidden" },
+    { as: "dara", m: "POST", p: () => (need("r6b"), `/api/bookings/${ctx.r6b}/cancel`), expect: 403,
+      say: "Dara tries to cancel Alice's booking", after: "forbidden" },
     { as: "alice", m: "GET", p: () => (need("r6b"), `/api/bookings/${ctx.r6b}`), expect: 200,
       say: "Alice views her own booking", after: "allowed" },
   ]},
   { no: "+", tab: "Security", title: "Login and roles", event: null,
     rule: "No token → 401 Unauthorized. Only ADMIN can create events, otherwise 403 Forbidden.", steps: [
     { as: null, m: "GET", p: () => "/api/events", expect: 401, say: "Someone calls the API without logging in" },
-    { as: "bob", m: "POST", p: () => "/api/events", b: () => event("Created by a customer?", 10), expect: 403,
-      say: "Bob (a customer) tries to create an event", after: "forbidden" },
+    { as: "dara", m: "POST", p: () => "/api/events", b: () => event("Created by a customer?", 10), expect: 403,
+      say: "Dara (a customer) tries to create an event", after: "forbidden" },
     { as: "admin", m: "POST", p: () => "/api/events", b: () => event("Created by admin", 10), expect: 201,
       say: "Admin creates an event", after: "allowed" },
   ]},
@@ -566,7 +566,7 @@ function renderEditor() {
   const parsed = parseDraft();
   const edited = parsed.ok && !draftError && isEdited(si, ti, { as: draft.as, m: draft.m, path: draft.path, body: parsed.body });
   const asSel = el("select", { "aria-label": "Send as", onchange: e => { draft.as = e.target.value || null; renderEditor(); } },
-    ...[["alice", "as alice"], ["bob", "as bob"], ["admin", "as admin"], ["", "no login"]].map(([v, t]) =>
+    ...[["alice", "as alice"], ["dara", "as dara"], ["admin", "as admin"], ["", "no login"]].map(([v, t]) =>
       el("option", { value: v, selected: (draft.as || "") === v }, t)));
   const mSel = el("select", { class: "method", "aria-label": "Method", onchange: e => { draft.m = e.target.value; renderEditor(); } },
     ...["GET", "POST", "PUT"].map(m => el("option", { value: m, selected: draft.m === m }, m)));

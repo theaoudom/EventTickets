@@ -132,6 +132,6 @@ so the two foreign key columns we search by are indexed manually.
 | Version | File | Does |
 |---|---|---|
 | V1 | `V1__create_tables.sql` | Creates the 3 tables, constraints and indexes |
-| V2 | `V2__seed_data.sql` | Demo users (admin, alice, bob) and 3 events (100 seats, 5 seats, one CANCELLED) |
+| V2 | `V2__seed_data.sql` | Demo users (admin, alice, dara) and 3 events (100 seats, 5 seats, one CANCELLED) |
 
 Never edit a migration that has run; add `V3__…sql` for changes.

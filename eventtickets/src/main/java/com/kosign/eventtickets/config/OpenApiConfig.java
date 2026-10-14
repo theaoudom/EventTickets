@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @OpenAPIDefinition(
         info = @Info(title = "Event Tickets API", version = "v1",
-                description = "Homework: book event tickets. Users: admin/admin123, alice/user123, bob/user123"),
+                description = "Homework: book event tickets. Users: admin/admin123, alice/user123, dara/user123"),
         security = @SecurityRequirement(name = "bearerAuth"))
 @SecurityScheme(name = "bearerAuth", type = SecuritySchemeType.HTTP, scheme = "bearer", bearerFormat = "JWT")
 public class OpenApiConfig {

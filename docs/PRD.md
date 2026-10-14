@@ -21,7 +21,7 @@ seat counts and prices, even under heavy load. Clients (web or mobile apps) talk
 | **ADMIN** | Event organizers | Everything a USER can, plus create, update and cancel events, and view all bookings |
 | **Guest** (not logged in) | Anyone | Only log in |
 
-Demo accounts: `admin / admin123` (ADMIN), `alice / user123` and `bob / user123` (USER).
+Demo accounts: `admin / admin123` (ADMIN), `alice / user123` and `dara / user123` (USER).
 
 ## 3. User stories
 
@@ -69,9 +69,9 @@ Each criterion is written as **Given / When / Then** and is covered by an automa
 |---|---|---|---|
 | BR-02 | an event with 100 seats | I book 3, then cancel | seats 100 → 97 → **100** |
 | BR-02 | a cancelled booking | I cancel it again | **409**, seats unchanged |
-| BR-06 | Alice's booking | Bob views or cancels it | **403** |
+| BR-06 | Alice's booking | Dara views or cancels it | **403** |
 | BR-06 | Alice's booking | Alice views it | **200** |
-| BR-06 | bookings from Alice and Bob | Bob lists his bookings | only Bob's bookings |
+| BR-06 | bookings from Alice and Dara | Dara lists his bookings | only Dara's bookings |
 | — | bookings from many customers | an ADMIN lists bookings | all bookings |
 
 ## 5. Non-functional requirements

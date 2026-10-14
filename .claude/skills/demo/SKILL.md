@@ -14,24 +14,37 @@ steps to run, the request/response, and the rule's event with its seats and book
   Safe to run twice: if the app is already up it just prints the URL. `PORT=8095` forces a port; `--open` opens the browser;
   `--reset` deletes the database container first so the data goes back to the 3 seed events and 3 users.
 - `.claude/skills/demo/scripts/stop.sh` — stops only this project's app (checks the process before killing). `--db` also stops PostgreSQL.
+- **Windows:** `start.ps1` / `stop.ps1` do the same in PowerShell (the `.sh` scripts need macOS tools such as `lsof`
+  and `open`). Same options as switches: `-Open`, `-Reset`, `-Port 8095`, and `-Db` for stop. Users without Claude
+  Code can double-click `demo-start.cmd` / `demo-stop.cmd` in the repo root.
 
 Run state (port, pid, log) is kept in `eventtickets/build/demo/`.
+
+## Which scripts to use
+
+Check the OS first: run `uname -s` (on Windows, Claude Code's shell is Git Bash and prints `MINGW…`/`MSYS…`;
+`echo $OS` prints `Windows_NT`).
+
+- **macOS / Linux:** `bash .claude/skills/demo/scripts/<name>.sh <options>`
+- **Windows:** `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .claude/skills/demo/scripts/<name>.ps1 <switches>`
 
 ## What to do
 
 Pick the action from the argument (no argument → `start`):
 
-| Argument | Run |
-|---|---|
-| `start` (default) | `bash .claude/skills/demo/scripts/start.sh --open` |
-| `stop` | `bash .claude/skills/demo/scripts/stop.sh` |
-| `stop --db` | `bash .claude/skills/demo/scripts/stop.sh --db` |
-| `restart` | `stop.sh`, then `start.sh --open` |
-| `reset` | `start.sh --reset --open` — **deletes all bookings and events made since setup**; only when the user asked for `reset` |
-| `status` | `cat eventtickets/build/demo/port` and `curl -s -o /dev/null -w '%{http_code}' http://localhost:<port>/`; `docker ps --filter name=eventtickets-pg` |
+| Argument | macOS / Linux | Windows (`powershell.exe -NoProfile -ExecutionPolicy Bypass -File …`) |
+|---|---|---|
+| `start` (default) | `start.sh --open` | `start.ps1 -Open` |
+| `stop` | `stop.sh` | `stop.ps1` |
+| `stop --db` | `stop.sh --db` | `stop.ps1 -Db` |
+| `restart` | `stop.sh`, then `start.sh --open` | `stop.ps1`, then `start.ps1 -Open` |
+| `reset` | `start.sh --reset --open` | `start.ps1 -Reset -Open` |
+| `status` | `cat eventtickets/build/demo/port`, then `curl -s -o /dev/null -w '%{http_code}' http://localhost:<port>/`; `docker ps --filter name=eventtickets-pg` | same commands (they work in Git Bash) |
 
-Run the commands from the project root (`Homework/`) with a timeout of at least 300000 ms — the first start downloads
-the PostgreSQL image and compiles the app. Run `start.sh` in the foreground: it returns as soon as the app is ready
+`reset` **deletes all bookings and events made since setup**; run it only when the user asked for `reset`.
+
+Run the commands from the repo root (the folder that contains `eventtickets/`) with a timeout of at least 300000 ms — the first start downloads
+the PostgreSQL image and compiles the app. Run the start script in the foreground: it returns as soon as the app is ready
 and leaves the app running in the background.
 
 ## Report back
@@ -40,7 +53,7 @@ On success, give the user the demo URL and the logins in a few lines:
 
 ```
 Demo running: http://localhost:<port>/
-Logins: admin/admin123 · alice/user123 · bob/user123
+Logins: admin/admin123 · alice/user123 · dara/user123
 Stop with /demo stop
 ```
 
