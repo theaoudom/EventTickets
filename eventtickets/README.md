@@ -44,13 +44,18 @@ Build: `./gradlew bootWar` → `build/libs/eventtickets-0.0.1-SNAPSHOT.war`. Run
 
 ## Demo page
 
-Open http://localhost:8080/ (the app serves `src/main/resources/static/index.html`).
-One card per business rule; click **Run** on each step in order, or **Run all steps**. Each step logs in
-as the right user (alice, bob or admin) automatically, shows the full HTTP request and response, and marks
-the result ✓ or ✗ against the expected status. Every rule creates its own event first, so the demo works on
-any data. Open `/#selftest` to run every step automatically.
+Open http://localhost:8080/ (the app serves `src/main/resources/static/index.html`). One tab per business rule:
 
-If port 8080 is taken, start the app with `SERVER_PORT=8090` and open http://localhost:8090/.
+- **Steps:** each rule's steps in order (admin creates an event, alice lists events, books, bob tries…), with the
+  expected status. **Run** sends a step as is; **Run all steps** runs the whole rule.
+- **Request panel:** click a step to open its request (user, method, URL, JSON body). Edit it if you like and press
+  **Send**; an edited request is marked *EDITED*. **Reset** restores it.
+- **Result:** a banner with the status (✓ / ✗ against the expected one), the response JSON, and the rule's event
+  with its seats left and the list of its bookings.
+
+Each rule creates its own event first, so rules don't affect each other and can be repeated in any order.
+`/#selftest` runs every step automatically. Start it with `/demo` in Claude Code, or
+`bash .claude/skills/demo/scripts/start.sh --open` from the repo root; `--reset` restores the seed data.
 
 ## Swagger UI
 

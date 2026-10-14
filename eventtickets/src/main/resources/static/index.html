@@ -33,7 +33,7 @@
 
   /* tabs */
   nav { max-width: 1400px; margin: 0 auto; padding: 0 24px; display: flex; gap: 6px; overflow-x: auto; }
-  .tab { border: 0; background: transparent; padding: 12px 14px 10px; font-size: 15px; font-weight: 600; color: var(--muted);
+  .tab { border: 0; background: transparent; padding: 12px 10px 10px; font-size: 14.5px; font-weight: 600; color: var(--muted);
          border-bottom: 3px solid transparent; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
   .tab .n { font-size: 12px; font-weight: 800; color: var(--accent); }
   .tab.on { color: var(--ink); border-bottom-color: var(--accent); }
@@ -77,8 +77,24 @@
   .hint { font-size: 14px; color: var(--bad); margin-top: 4px; font-weight: 600; }
 
   /* result side */
-  .side { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 14px; }
-  @media (max-width: 980px) { .side { position: static; } }
+  .side { display: flex; flex-direction: column; gap: 16px; }
+  .step { cursor: pointer; transition: box-shadow .15s; }
+  .step:hover { box-shadow: 0 2px 10px rgba(20, 40, 90, .08); }
+  .step.sel { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .tap { font-size: 12px; color: var(--muted); margin: -4px 0 10px; }
+  .editor .row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .editor select, .editor input, .editor textarea { font: inherit; font-size: 14.5px; border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; background: #fff; color: var(--ink); }
+  .editor .path { flex: 1; min-width: 0; font-family: "SF Mono", Menlo, Consolas, monospace; }
+  .editor .method { font-weight: 800; color: var(--accent); }
+  .editor textarea { width: 100%; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 14px; line-height: 1.5; resize: vertical; min-height: 64px; background: var(--code-bg); }
+  .editor textarea:disabled { color: var(--muted); }
+  .editor .small { font-size: 12px; font-weight: 800; color: var(--muted); letter-spacing: .6px; margin: 2px 0 4px; }
+  .editor .foot { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .editor .exp { flex: 1; font-size: 14px; color: var(--muted); }
+  .editor .err { color: var(--bad); font-weight: 600; font-size: 14px; margin-top: 6px; }
+  .tagged { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: var(--warn-soft); color: var(--warn); letter-spacing: .3px; }
+  .send { background: var(--accent); color: #fff; border: 0; border-radius: 10px; padding: 9px 20px; font-weight: 800; }
+  .send:disabled { opacity: .45; cursor: default; }
   .banner { border-radius: 14px; padding: 18px 22px; display: flex; gap: 16px; align-items: center; border: 1px solid var(--line); background: var(--panel); }
   .banner .code { font-size: 34px; font-weight: 800; min-width: 70px; }
   .banner .title { font-size: 19px; font-weight: 700; }
@@ -94,6 +110,14 @@
   .ev-meta { color: var(--muted); font-size: 14px; }
   .meter { height: 12px; background: var(--soft); border-radius: 6px; overflow: hidden; margin-top: 8px; }
   .meter span { display: block; height: 100%; background: var(--accent); transition: width .4s; }
+  .bk-title { font-size: 12px; font-weight: 800; letter-spacing: 1px; color: var(--muted); margin: 16px 0 6px; display: flex; justify-content: space-between; }
+  .bk { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  .bk th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 700; padding: 5px 8px; border-bottom: 2px solid var(--line); }
+  .bk td { padding: 7px 8px; border-bottom: 1px solid var(--line); }
+  .bk .amt { text-align: right; font-variant-numeric: tabular-nums; }
+  .bk tr.cancelled td { color: var(--muted); }
+  .bk tr.new td { animation: flash 1.2s ease-out; }
+  .pill.BOOKED { background: var(--ok-soft); color: var(--ok); }
   .pill { font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 999px; }
   .pill.ACTIVE { background: var(--ok-soft); color: var(--ok); } .pill.CANCELLED { background: var(--bad-soft); color: var(--bad); }
   .flash { animation: flash 1s ease-out; }
@@ -138,22 +162,19 @@
   <section class="card" id="rule"></section>
 
   <div class="side">
+    <div class="card editor" id="editor"></div>
+
     <div class="banner idle" id="banner">
       <div class="code">—</div>
-      <div><div class="title">Press “Run” on step 1</div><div class="detail">The result of each request appears here.</div></div>
-    </div>
-
-    <div class="card" id="eventCard" hidden></div>
-
-    <div class="card">
-      <div class="label">REQUEST <span id="reqWho"></span></div>
-      <div id="request" class="empty">—</div>
+      <div><div class="title">Click a step, check the request, press “Send”</div><div class="detail">The result of each request appears here.</div></div>
     </div>
 
     <div class="card">
       <div class="label">RESPONSE <span id="resMeta"></span></div>
       <div id="response" class="empty">—</div>
     </div>
+
+    <div class="card" id="eventCard" hidden></div>
   </div>
 </main>
 
@@ -265,6 +286,15 @@ const SCENARIOS = [
   ]},
 ];
 
+// Every rule gets a "list events" step right after its event is created. It needs no ids,
+// so it can be clicked and sent at any time to show the current list of events.
+const listEventsStep = () => ({ as: "alice", m: "GET", p: () => "/api/events?sort=id,desc&size=5", expect: 200,
+  say: "Alice lists the events", after: "newest first, the event from step 1 is at the top" });
+for (const sc of SCENARIOS) {
+  const i = sc.steps.findIndex(st => { try { return st.m === "POST" && st.p() === "/api/events" && st.expect === 201; } catch { return false; } });
+  if (i >= 0) sc.steps.splice(i + 1, 0, listEventsStep());
+}
+
 // ---------- helpers ----------
 const STATUS_TEXT = { 200: "OK", 201: "Created", 400: "Bad Request", 401: "Unauthorized", 403: "Forbidden",
                       404: "Not Found", 409: "Conflict", 500: "Server Error" };
@@ -324,19 +354,27 @@ async function http(method, path, body, as, { show = true, record = true } = {})
 let current = 0;
 const results = {}; // "si-ti" -> { ok, status, hint }
 
-async function runStep(si, ti) {
+// `override` = the request from the editor ({ as, m, path, body }); without it the step's own request is sent.
+async function runStep(si, ti, override = null) {
   const step = SCENARIOS[si].steps[ti];
   const key = `${si}-${ti}`;
-  let path, body;
-  try { path = step.p(); body = step.b ? step.b() : undefined; }
-  catch (err) { results[key] = { ok: false, status: "–", hint: err.message }; renderRule(); return false; }
+  let req;
+  if (override) req = override;
+  else {
+    try { req = { as: step.as, m: step.m, path: step.p(), body: step.b ? step.b() : undefined }; }
+    catch (err) { results[key] = { ok: false, status: "–", hint: err.message }; renderRule(); return false; }
+  }
+  const edited = !!override && isEdited(si, ti, override);
+  selected = { si, ti };
   results[key] = { ok: null };
   renderRule(ti);
-  const r = await http(step.m, path, body, step.as);
+  const r = await http(req.m, req.path, req.body, req.as);
+  draft = { as: req.as, m: req.m, path: req.path, bodyText: req.body == null ? "" : JSON.stringify(req.body, null, 2) };
+  renderEditor();
   let ok = r.status === step.expect, hint = ok ? "" : `Expected ${step.expect}, got ${r.status}`;
   if (ok && step.check) { const c = step.check(r); if (c !== true) { ok = false; hint = c; } }
   if (ok && step.save) step.save(r);
-  results[key] = { ok, status: r.status, hint };
+  results[key] = { ok, status: r.status, hint, edited };
   showBanner(step, r, ok);
   if (si === current) { renderRule(ti); await renderEvent(); }
   renderTabs();
@@ -365,7 +403,7 @@ function ruleState(si) {
 }
 function renderTabs() {
   document.getElementById("tabs").replaceChildren(...SCENARIOS.map((sc, si) =>
-    el("button", { class: "tab" + (si === current ? " on" : ""), onclick: () => { current = si; clearPanels(); renderAll(); } },
+    el("button", { class: "tab" + (si === current ? " on" : ""), onclick: () => { current = si; clearPanels(); renderAll(); selectStep(si, Math.max(0, nextStep(si))); } },
       el("span", { class: "n" }, sc.no), sc.tab, el("span", { class: "dot " + ruleState(si) }))));
 }
 
@@ -383,7 +421,8 @@ function renderRule(running = -1) {
     const isCurrent = ti === running || (running < 0 && ti === next);
     let path = "";
     try { path = st.p(); } catch { path = "(uses the id from an earlier step)"; }
-    return el("div", { class: `step ${state} ${isCurrent ? "current" : ""}` },
+    const isSel = selected && selected.si === si && selected.ti === ti;
+    return el("div", { class: `step ${state} ${isCurrent && !isSel ? "current" : ""} ${isSel ? "sel" : ""}`, onclick: () => selectStep(si, ti) },
       el("div", { class: "num" }, state === "pass" ? "✓" : state === "fail" ? "✗" : ti + 1),
       el("div", {},
         el("div", { class: "say" }, who(st.as), st.say, st.after ? el("span", { style: "color:var(--muted);font-weight:500" }, ` → ${st.after}`) : null),
@@ -392,16 +431,17 @@ function renderRule(running = -1) {
       el("div", { class: "right-side" },
         el("div", { class: "expect" }, "expect ", el("b", {}, `${st.expect} ${STATUS_TEXT[st.expect] || ""}`)),
         res && res.ok === null ? el("div", { class: "got" }, "running…")
-          : res ? el("div", { class: "got " + state }, `${res.ok ? "✓" : "✗"} got ${res.status}`)
-          : el("button", { class: "run", onclick: () => runStep(si, ti) }, "Run")));
+          : res ? el("div", { class: "got " + state }, `${res.ok ? "✓" : "✗"} got ${res.status}`, res.edited ? el("div", { class: "tagged", style: "margin-top:3px" }, "EDITED") : null)
+          : el("button", { class: "run", onclick: e => { e.stopPropagation(); runStep(si, ti); } }, "Run")));
   });
   document.getElementById("rule").replaceChildren(
-    el("div", { class: "rule-no" }, sc.no === "+" ? "EXTRA" : `RULE ${sc.no}`),
+    el("div", { class: "rule-no" }, /^\d+$/.test(sc.no) ? `RULE ${sc.no}` : "EXTRA"),
     el("div", { class: "rule-title" }, sc.title),
     el("p", { class: "rule-text" }, sc.rule),
     el("div", { class: "rule-actions" },
       el("button", { class: "primary", onclick: () => runAll(si) }, "▶ Run all steps"),
       el("button", { class: "secondary", onclick: () => resetRule(si) }, "↺ Start this rule again")),
+    el("div", { class: "tap" }, "Tip: click a step to open its request on the right, edit it if you want, then press Send."),
     el("div", { class: "steps" }, steps));
 }
 
@@ -418,13 +458,6 @@ function showBanner(step, r, ok) {
 }
 
 function showExchange(e) {
-  const auth = e.headers.Authorization ? e.headers.Authorization.replace(/(Bearer \S{12})\S+(\S{6})/, "$1…$2") : "none (not logged in)";
-  document.getElementById("reqWho").replaceChildren(who(e.as));
-  document.getElementById("request").className = "";
-  document.getElementById("request").replaceChildren(
-    el("div", { class: "reqline mono" }, el("span", { class: "m" }, e.method), " ", e.path),
-    el("div", { class: "hdr mono" }, "Authorization: ", auth),
-    e.body != null ? el("pre", { class: "json", html: jsonHtml(e.body) }) : el("div", { class: "empty" }, "No body"));
   const cls = "st s" + String(e.status)[0];
   document.getElementById("resMeta").replaceChildren(
     el("span", { class: cls }, `${e.status || "ERR"} ${STATUS_TEXT[e.status] || ""}`), el("span", { style: "font-weight:500" }, `· ${e.ms} ms`));
@@ -456,7 +489,33 @@ async function renderEvent() {
       el("div", {},
         el("div", { class: "ev-name" }, ev.name, " ", el("span", { class: "pill " + ev.status }, ev.status)),
         el("div", { class: "ev-meta" }, `Seats left · Event #${ev.id} · Price ${ev.price.toFixed(2)}`),
-        el("div", { class: "meter" }, el("span", { style: `width:${pct}%` })))));
+        el("div", { class: "meter" }, el("span", { style: `width:${pct}%` })))),
+    await bookingsTable(ev.id));
+}
+
+// Bookings of the rule's event (read as admin, who can see every customer's bookings).
+let seenBookings = new Set();
+async function bookingsTable(eventId) {
+  if (!tokens.admin) await login("admin");
+  const r = await http("GET", "/api/bookings?size=100&sort=id,asc", null, "admin", { show: false, record: false });
+  const list = r.status === 200 ? r.body.content.filter(b => b.eventId === eventId) : [];
+  const title = el("div", { class: "bk-title" }, el("span", {}, "BOOKINGS FOR THIS EVENT"), el("span", {}, `${list.length} booking(s)`));
+  if (!list.length) return el("div", {}, title, el("div", { class: "empty" }, "No bookings yet."));
+  const rows = list.map(b => {
+    const fresh = !seenBookings.has(b.id + b.status);
+    seenBookings.add(b.id + b.status);
+    return el("tr", { class: (b.status === "CANCELLED" ? "cancelled " : "") + (fresh ? "new" : "") },
+      el("td", { class: "mono" }, "#" + b.id),
+      el("td", {}, who(b.username)),
+      el("td", { class: "amt" }, b.quantity),
+      el("td", { class: "amt" }, b.unitPrice.toFixed(2)),
+      el("td", { class: "amt" }, el("b", {}, b.totalAmount.toFixed(2))),
+      el("td", {}, el("span", { class: "pill " + b.status }, b.status)));
+  });
+  return el("div", {}, title, el("table", { class: "bk" },
+    el("thead", {}, el("tr", {}, ...["Booking", "Customer", "Tickets", "Price", "Total", "Status"]
+      .map(h => el("th", { class: ["Tickets", "Price", "Total"].includes(h) ? "amt" : null }, h)))),
+    el("tbody", {}, rows)));
 }
 
 function renderHistory() {
@@ -468,16 +527,95 @@ function renderHistory() {
       el("b", {}, e.method), el("span", { class: "p mono" }, e.path), el("span", { style: "color:var(--muted)" }, e.as || "–"))));
 }
 
+// ---------- request editor ----------
+let selected = null;   // { si, ti } of the step shown in the editor
+let draft = null;      // { as, m, path, bodyText }
+let draftError = "";
+
+function originalRequest(si, ti) {
+  const st = SCENARIOS[si].steps[ti];
+  try { return { as: st.as, m: st.m, path: st.p(), body: st.b ? st.b() : undefined, error: "" }; }
+  catch (err) { return { as: st.as, m: st.m, path: "", body: undefined, error: "This step uses the id created by an earlier step. Run the earlier steps first." }; }
+}
+function selectStep(si, ti) {
+  selected = { si, ti };
+  const o = originalRequest(si, ti);
+  draft = { as: o.as, m: o.m, path: o.path, bodyText: o.body == null ? "" : JSON.stringify(o.body, null, 2) };
+  draftError = o.error;
+  renderEditor();
+  if (si === current) renderRule();
+}
+const sameJson = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+function isEdited(si, ti, req) {
+  const o = originalRequest(si, ti);
+  return o.error === "" && (req.as !== o.as || req.m !== o.m || req.path !== o.path || !sameJson(req.body, o.body));
+}
+function parseDraft() {
+  if (draft.m === "GET" || !draft.bodyText.trim()) return { ok: true, body: undefined };
+  try { return { ok: true, body: JSON.parse(draft.bodyText) }; }
+  catch (e) { return { ok: false, error: "The body is not valid JSON: " + e.message }; }
+}
+function renderEditor() {
+  const box = document.getElementById("editor");
+  if (!selected || !draft) {
+    box.replaceChildren(el("div", { class: "label" }, "REQUEST"), el("div", { class: "empty" }, "Click a step on the left to open its request here."));
+    return;
+  }
+  const { si, ti } = selected;
+  const step = SCENARIOS[si].steps[ti];
+  const parsed = parseDraft();
+  const edited = parsed.ok && !draftError && isEdited(si, ti, { as: draft.as, m: draft.m, path: draft.path, body: parsed.body });
+  const asSel = el("select", { "aria-label": "Send as", onchange: e => { draft.as = e.target.value || null; renderEditor(); } },
+    ...[["alice", "as alice"], ["bob", "as bob"], ["admin", "as admin"], ["", "no login"]].map(([v, t]) =>
+      el("option", { value: v, selected: (draft.as || "") === v }, t)));
+  const mSel = el("select", { class: "method", "aria-label": "Method", onchange: e => { draft.m = e.target.value; renderEditor(); } },
+    ...["GET", "POST", "PUT"].map(m => el("option", { value: m, selected: draft.m === m }, m)));
+  const path = el("input", { class: "path", value: draft.path, placeholder: "/api/...", "aria-label": "URL path",
+    oninput: e => { draft.path = e.target.value; refreshEditedTag(); } });
+  const lines = Math.min(14, Math.max(3, draft.bodyText.split("\n").length + 1));
+  const body = el("textarea", { rows: lines, spellcheck: "false", "aria-label": "JSON body", disabled: draft.m === "GET",
+    placeholder: draft.m === "GET" ? "GET requests have no body" : "{ }",
+    oninput: e => { draft.bodyText = e.target.value; refreshEditedTag(); } });
+  body.value = draft.m === "GET" ? "" : draft.bodyText;
+  const send = el("button", { class: "send", disabled: !draft.path, onclick: sendDraft }, "▶ Send");
+  box.replaceChildren(
+    el("div", { class: "label" }, `REQUEST · ${/^\d+$/.test(SCENARIOS[si].no) ? "RULE " + SCENARIOS[si].no : SCENARIOS[si].tab.toUpperCase()} · STEP ${ti + 1}`,
+       el("span", { class: "tagged", id: "editedTag", hidden: !edited }, "EDITED")),
+    el("div", { class: "say", style: "margin-bottom:10px" }, who(step.as), step.say),
+    el("div", { class: "row" }, asSel, mSel),
+    el("div", { class: "row" }, path),
+    el("div", { class: "small" }, "BODY (JSON)"),
+    body,
+    el("div", { class: "err" }, draftError || ""),
+    el("div", { class: "err", id: "jsonErr" }, parsed.ok ? "" : parsed.error),
+    el("div", { class: "foot" },
+      el("div", { class: "exp" }, "Expected: ", el("b", {}, `${step.expect} ${STATUS_TEXT[step.expect] || ""}`)),
+      el("button", { class: "secondary", onclick: () => selectStep(si, ti) }, "↺ Reset"),
+      send));
+}
+function refreshEditedTag() {
+  const { si, ti } = selected;
+  const parsed = parseDraft();
+  document.getElementById("jsonErr").textContent = parsed.ok ? "" : parsed.error;
+  const tag = document.getElementById("editedTag");
+  if (tag) tag.hidden = !(parsed.ok && !draftError && isEdited(si, ti, { as: draft.as, m: draft.m, path: draft.path, body: parsed.body }));
+  document.querySelector("#editor .send").disabled = !draft.path;
+}
+async function sendDraft() {
+  const parsed = parseDraft();
+  if (!parsed.ok) { document.getElementById("jsonErr").textContent = parsed.error; return; }
+  draftError = "";
+  const { si, ti } = selected;
+  await runStep(si, ti, { as: draft.as, m: draft.m, path: draft.path.trim(), body: parsed.body });
+}
+
 function clearPanels() {
   const banner = document.getElementById("banner");
   banner.className = "banner idle";
   banner.replaceChildren(el("div", { class: "code" }, "—"),
-    el("div", {}, el("div", { class: "title" }, "Press “Run” on step 1"), el("div", { class: "detail" }, "The result of each request appears here.")));
-  for (const id of ["request", "response"]) {
-    const box = document.getElementById(id);
-    box.className = "empty"; box.textContent = "—";
-  }
-  document.getElementById("reqWho").replaceChildren();
+    el("div", {}, el("div", { class: "title" }, "Click a step, check the request, press “Send”"), el("div", { class: "detail" }, "The result of each request appears here.")));
+  const res = document.getElementById("response");
+  res.className = "empty"; res.textContent = "—";
   document.getElementById("resMeta").replaceChildren();
 }
 
@@ -496,6 +634,7 @@ document.getElementById("cSend").addEventListener("click", async () => {
 
 renderUsers();
 renderAll();
+selectStep(0, 0);
 
 // Self-test: open /#selftest to run every rule automatically (used to verify this page).
 if (location.hash === "#selftest") {
@@ -505,9 +644,15 @@ if (location.hash === "#selftest") {
     const out = el("pre", { id: "selftest" },
       `SELFTEST ${all.filter(([, r]) => r.ok).length}/${all.length} passed\n` +
       all.map(([k, r]) => `${k}: ${r.ok ? "PASS" : "FAIL"} ${r.status} ${r.hint || ""}`).join("\n"));
+    // Editor check: open rule 03 step 3 (5 tickets, expect 400), edit quantity to 3, send.
+    current = 2; renderAll(); selectStep(2, 2);
+    draft.bodyText = draft.bodyText.replace(/"quantity": 5/, '"quantity": 3');
+    await sendDraft();
+    const ed = results["2-2"];
+    out.textContent += `\nEDITOR: edited=${ed.edited} status=${ed.status} (expect edited=true status=201)`;
     out.hidden = true;
     document.body.append(out);
-    current = 0; renderAll();
+    current = 0; renderAll(); selectStep(0, 1);
   })();
 }
 </script>

@@ -1,16 +1,18 @@
 ---
 name: demo
-description: Start or stop the Event Tickets API demo in this project — opens Docker if needed, starts PostgreSQL (container eventtickets-pg, port 5433), runs the Spring Boot app on a free port, checks the demo page and prints its URL. Use when asked to start, run, open, restart or stop the demo/app/project. Usage: /demo [start | stop | stop --db | restart | status]
+description: Start, stop or reset the Event Tickets API demo in this project — opens Docker if needed, starts PostgreSQL (container eventtickets-pg, port 5433), runs the Spring Boot app on a free port, checks the demo page and prints its URL. Use when asked to start, run, open, restart, reset or stop the demo/app/project. Usage: /demo [start | stop | stop --db | restart | reset | status]
 ---
 
 # Event Tickets demo
 
-The app lives in `eventtickets/`. The demo page is served by the app itself at `/` (not openable as a file), so the
-database and the app must both be running. Two scripts do all the work:
+The app lives in `eventtickets/`. The demo page (`src/main/resources/static/index.html`: one tab per business rule with
+steps to run, the request/response, and the rule's event with its seats and bookings) is served by the app itself at `/`
+(not openable as a file), so the database and the app must both be running. Two scripts do all the work:
 
 - `.claude/skills/demo/scripts/start.sh` — Docker → PostgreSQL → app → checks `GET /` returns 200 → prints the URLs.
   Picks the first free port of 8090, 8091, 8095, 9090, 9095 (8080/8081 are often taken by other KOSIGN projects).
-  Safe to run twice: if the app is already up it just prints the URL. `PORT=8095` forces a port; `--open` opens the browser.
+  Safe to run twice: if the app is already up it just prints the URL. `PORT=8095` forces a port; `--open` opens the browser;
+  `--reset` deletes the database container first so the data goes back to the 3 seed events and 3 users.
 - `.claude/skills/demo/scripts/stop.sh` — stops only this project's app (checks the process before killing). `--db` also stops PostgreSQL.
 
 Run state (port, pid, log) is kept in `eventtickets/build/demo/`.
@@ -25,6 +27,7 @@ Pick the action from the argument (no argument → `start`):
 | `stop` | `bash .claude/skills/demo/scripts/stop.sh` |
 | `stop --db` | `bash .claude/skills/demo/scripts/stop.sh --db` |
 | `restart` | `stop.sh`, then `start.sh --open` |
+| `reset` | `start.sh --reset --open` — **deletes all bookings and events made since setup**; only when the user asked for `reset` |
 | `status` | `cat eventtickets/build/demo/port` and `curl -s -o /dev/null -w '%{http_code}' http://localhost:<port>/`; `docker ps --filter name=eventtickets-pg` |
 
 Run the commands from the project root (`Homework/`) with a timeout of at least 300000 ms — the first start downloads

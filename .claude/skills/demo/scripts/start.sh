@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Starts the Event Tickets demo: Docker -> PostgreSQL (port 5433) -> Spring Boot app -> prints the demo URL.
-# Usage: start.sh [--open]        PORT=8095 start.sh  (force a port)
+# Usage: start.sh [--open] [--reset]    PORT=8095 start.sh  (force a port)
+#   --reset  deletes the database container first, so Flyway recreates the tables and the original seed data
 set -euo pipefail
 
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -10,7 +11,14 @@ STATE="$APP/build/demo"
 LOG="$STATE/app.log"
 DB=eventtickets-pg
 OPEN=false
-[[ "${1:-}" == "--open" ]] && OPEN=true
+RESET=false
+for arg in "$@"; do
+  case "$arg" in
+    --open) OPEN=true ;;
+    --reset) RESET=true ;;
+    *) echo "Unknown option: $arg" >&2; exit 2 ;;
+  esac
+done
 
 say()  { printf '\033[1;34m▶\033[0m %s\n' "$*"; }
 ok()   { printf '\033[1;32m✓\033[0m %s\n' "$*"; }
@@ -19,7 +27,10 @@ fail() { printf '\033[1;31m✗\033[0m %s\n' "$*" >&2; exit 1; }
 [[ -x "$APP/gradlew" ]] || fail "Project not found at $APP"
 mkdir -p "$STATE"
 
-# 0. Already running?
+# 0. Reset: stop the app first (the database is deleted after Docker is up, below)
+$RESET && bash "$SKILL_DIR/scripts/stop.sh" >/dev/null
+
+# Already running?
 if [[ -f "$STATE/port" ]]; then
   port=$(cat "$STATE/port")
   if curl -s -o /dev/null -w '%{http_code}' "http://localhost:$port/" 2>/dev/null | grep -q 200 \
@@ -38,6 +49,10 @@ if ! docker info >/dev/null 2>&1; then
   docker info >/dev/null 2>&1 || fail "Docker did not start within 3 minutes."
 fi
 ok "Docker is running"
+
+if $RESET; then
+  docker rm -f "$DB" >/dev/null 2>&1 && say "Deleted database container $DB (data reset)"
+fi
 
 # 2. Database (create the container the first time)
 if docker ps -a --format '{{.Names}}' | grep -qx "$DB"; then
