@@ -76,7 +76,7 @@ or let one customer see or cancel another customer's booking. Each of these cost
 - Each user has one role: **customer** or **admin**.
 - A booking keeps the price paid at booking time, even if the event price changes later.
 - Cancelled bookings and events are kept (status CANCELLED) for history, not deleted.
-- Technology is fixed by the course: Spring Boot 4, Java 21, PostgreSQL (see [SRS](SRS.md)).
+- Technology is fixed by the course: Spring Boot 4, Java 21, PostgreSQL.
 
 ## 8. Success criteria
 

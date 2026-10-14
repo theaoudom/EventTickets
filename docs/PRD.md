@@ -99,4 +99,4 @@ event is cancelled (future work).
 
 ---
 
-**Next:** [SRS](SRS.md) explains how the system is built to meet these requirements.
+**Next:** [ERD](ERD.md) for the database and [API Spec](API-SPEC.md) for the endpoints.
