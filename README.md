@@ -6,6 +6,7 @@ server-side price, no booking a cancelled event, own bookings only).
 
 | Path | What |
 |---|---|
+| [`docs/`](docs/) | Project documents: [BRD](docs/BRD.md), [PRD](docs/PRD.md), [SRS](docs/SRS.md), [ERD](docs/ERD.md), [API Spec](docs/API-SPEC.md) |
 | [`eventtickets/`](eventtickets/) | The Spring Boot project. See its [README](eventtickets/README.md) for endpoints and curl examples |
 | [`Event-Tickets-API-Explanation.pdf`](Event-Tickets-API-Explanation.pdf) | Full explanation: setup, architecture, request flow, security, demo script, mentor Q&A |
 | [`.claude/skills/demo/`](.claude/skills/demo/) | `/demo` skill for Claude Code: starts PostgreSQL + the app and opens the demo page |
