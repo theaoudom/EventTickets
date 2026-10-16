@@ -3,7 +3,8 @@
 # Usage: start.sh [--open] [--reset] [--database=auto|docker|local|h2]     PORT=8095 start.sh  (force a port)
 #   --database=auto (default) picks the first that works:
 #       docker  PostgreSQL in a Docker container on port 5433 (opens Docker Desktop if it is installed but closed)
-#       local   a PostgreSQL already installed on this PC (port LOCAL_DB_PORT, default 5432), database/user "eventtickets"
+#       local   a PostgreSQL already installed on this PC (found on whatever port it runs; LOCAL_DB_PORT to force one),
+#               database/user "eventtickets"
 #       h2      built-in in-memory database: needs nothing but Java; data resets when the app restarts
 #   --reset  docker: deletes the container so Flyway recreates the tables and seed data (h2 always starts fresh)
 set -euo pipefail
@@ -14,6 +15,7 @@ APP="$ROOT/eventtickets"
 STATE="$APP/build/demo"
 LOG="$STATE/app.log"
 DB=eventtickets-pg
+LOCAL_DB_PORT_GIVEN=${LOCAL_DB_PORT:+yes}
 LOCAL_DB_PORT="${LOCAL_DB_PORT:-5432}"
 OPEN=false
 RESET=false
@@ -62,14 +64,25 @@ try_docker() {
   return 1
 }
 
+# Port of a PostgreSQL server running on this machine: LOCAL_DB_PORT if something listens there, else found by
+# process name on any port (only when LOCAL_DB_PORT was not given)
+local_pg_port() {
+  if listening "$LOCAL_DB_PORT"; then echo "$LOCAL_DB_PORT"; return 0; fi
+  [[ -n "$LOCAL_DB_PORT_GIVEN" ]] && return 1
+  local p
+  p=$(lsof -nP -iTCP -sTCP:LISTEN -c postgres 2>/dev/null | awk 'NR>1 {n=split($9, a, ":"); print a[n]}' | sort -n | head -1)
+  [[ -n "$p" ]] && { echo "$p"; return 0; }
+  return 1
+}
+
 MODE=""
 case "$DATABASE" in
   docker) try_docker && MODE=docker || fail "Docker is not available (use --database=local or --database=h2)." ;;
-  local)  listening "$LOCAL_DB_PORT" && MODE=local || fail "No PostgreSQL listening on port $LOCAL_DB_PORT." ;;
+  local)  if p=$(local_pg_port); then LOCAL_DB_PORT=$p; MODE=local; else fail "No running PostgreSQL found on this machine."; fi ;;
   h2)     MODE=h2 ;;
   auto)
     if try_docker; then MODE=docker
-    elif listening "$LOCAL_DB_PORT"; then MODE=local; warn "Docker not available - using the PostgreSQL installed on this PC (port $LOCAL_DB_PORT)"
+    elif p=$(local_pg_port); then LOCAL_DB_PORT=$p; MODE=local; warn "Docker not available - using the PostgreSQL installed on this PC (port $LOCAL_DB_PORT)"
     else MODE=h2; warn "No Docker and no PostgreSQL found - using the built-in H2 database (data resets when the app restarts)"
     fi ;;
 esac

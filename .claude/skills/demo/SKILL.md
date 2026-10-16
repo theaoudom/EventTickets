@@ -26,7 +26,9 @@ Run state (port, pid, log, chosen database in `mode`) is kept in `eventtickets/b
 `auto` uses the first that works, and the script prints which one it chose (tell the user):
 
 1. **docker** — PostgreSQL in the `eventtickets-pg` container on port 5433. Opens Docker Desktop if it is installed but closed.
-2. **local** — a PostgreSQL already installed on the PC, listening on port 5432 (`LOCAL_DB_PORT` / `-LocalDbPort` to change).
+2. **local** — a PostgreSQL already installed on the PC, found by its `postgres` process on whatever port it uses
+   (port 5432 first; `LOCAL_DB_PORT` / `-LocalDbPort` forces one). On Windows, if a `postgresql*` service exists but is
+   stopped, the script says so (start it in services.msc) and falls back to H2.
    Needs database and user `eventtickets` (password `eventtickets`, or set `DB_USERNAME` / `DB_PASSWORD`). If they are
    missing the script prints the two SQL lines to run once in pgAdmin or psql as the postgres user:
    `CREATE USER eventtickets WITH PASSWORD 'eventtickets';` and `CREATE DATABASE eventtickets OWNER eventtickets;`

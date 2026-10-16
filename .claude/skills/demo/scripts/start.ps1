@@ -3,7 +3,8 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\demo\scripts\start.ps1 [-Open] [-Reset] [-Port 8095] [-Database auto|docker|local|h2]
 #   -Database auto (default) picks the first that works:
 #       docker  PostgreSQL in a Docker container on port 5433 (opens Docker Desktop if it is installed but closed)
-#       local   a PostgreSQL already installed on this PC (port -LocalDbPort, default 5432), database/user "eventtickets"
+#       local   a PostgreSQL already installed on this PC (found on whatever port it runs; -LocalDbPort to force one),
+#               database/user "eventtickets"
 #       h2      built-in in-memory database: needs nothing but Java; data resets when the app restarts
 #   -Reset  docker: deletes the container so Flyway recreates the tables and seed data (h2 always starts fresh)
 # Keep this file plain ASCII: Windows PowerShell 5.1 misreads UTF-8 files without a BOM.
@@ -39,6 +40,16 @@ function Test-DockerReady {
   docker info *> $null
   return ($LASTEXITCODE -eq 0)
 }
+# Port of a PostgreSQL server running on this PC, found by its process name (any port), or $null
+function Find-LocalPostgresPort {
+  $listening = Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue |
+    Where-Object { $_.LocalAddress -in @('0.0.0.0', '::', '127.0.0.1', '::1') } | Sort-Object LocalPort
+  foreach ($c in $listening) {
+    $p = Get-Process -Id $c.OwningProcess -ErrorAction SilentlyContinue
+    if ($p -and $p.ProcessName -match '^postgres') { return [int]$c.LocalPort }
+  }
+  return $null
+}
 function Start-DockerIfInstalled {
   if (Test-DockerReady) { return $true }
   $dockerExe = Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'
@@ -68,14 +79,35 @@ if (-not $Reset -and (Test-Path $portFile)) {
 
 # 1. Choose the database
 $mode = $null
+$portGiven = $PSBoundParameters.ContainsKey('LocalDbPort')
+function Resolve-LocalPostgres {
+  if ($portGiven) { if (Test-PortInUse $LocalDbPort) { return $LocalDbPort } else { return $null } }
+  if (Test-PortInUse $LocalDbPort) { return $LocalDbPort }
+  return Find-LocalPostgresPort
+}
+function Warn-StoppedPostgres {
+  $stopped = Get-Service -Name 'postgresql*' -ErrorAction SilentlyContinue | Where-Object { $_.Status -ne 'Running' }
+  foreach ($svc in $stopped) {
+    Warn "PostgreSQL is installed but its service '$($svc.Name)' is stopped. To use it: Win+R, services.msc, right-click it, Start - then run this again."
+  }
+}
 switch ($Database) {
   'docker' { if (Start-DockerIfInstalled) { $mode = 'docker' } else { Fail 'Docker is not available (use -Database local or -Database h2).' } }
-  'local'  { if (Test-PortInUse $LocalDbPort) { $mode = 'local' } else { Fail "No PostgreSQL listening on port $LocalDbPort." } }
+  'local'  {
+    $found = Resolve-LocalPostgres
+    if ($found) { $LocalDbPort = $found; $mode = 'local' } else { Warn-StoppedPostgres; Fail 'No running PostgreSQL found on this PC.' }
+  }
   'h2'     { $mode = 'h2' }
   default {
     if (Start-DockerIfInstalled) { $mode = 'docker' }
-    elseif (Test-PortInUse $LocalDbPort) { $mode = 'local'; Warn "Docker not available - using the PostgreSQL installed on this PC (port $LocalDbPort)" }
-    else { $mode = 'h2'; Warn 'No Docker and no PostgreSQL found - using the built-in H2 database (data resets when the app restarts)' }
+    else {
+      $found = Resolve-LocalPostgres
+      if ($found) { $LocalDbPort = $found; $mode = 'local'; Warn "Docker not available - using the PostgreSQL installed on this PC (port $LocalDbPort)" }
+      else {
+        Warn-StoppedPostgres
+        $mode = 'h2'; Warn 'No Docker and no running PostgreSQL found - using the built-in H2 database (data resets when the app restarts)'
+      }
+    }
   }
 }
 Set-Content -Path (Join-Path $State 'mode') -Value $mode
