@@ -1,8 +1,0 @@
-# Demo fallback when no PostgreSQL is available: SPRING_PROFILES_ACTIVE=h2
-# H2 in PostgreSQL mode, stored in a file so DBeaver can open it while the app runs (AUTO_SERVER).
-# Flyway runs the same migrations. The start scripts delete the file first, so every start has fresh seed data.
-spring:
-  datasource:
-    url: jdbc:h2:file:${H2_DB_FILE:./build/demo/h2/eventtickets};MODE=PostgreSQL;DATABASE_TO_UPPER=true;AUTO_SERVER=TRUE
-    username: sa
-    password:

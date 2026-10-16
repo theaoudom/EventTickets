@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # Starts the Event Tickets demo: database -> Spring Boot app -> prints the demo URL.
-# Usage: start.sh [--open] [--reset] [--database=auto|docker|local|h2]     PORT=8095 start.sh  (force a port)
+# Usage: start.sh [--open] [--reset] [--database=auto|docker|local]     PORT=8095 start.sh  (force a port)
 #   --database=auto (default) picks the first that works:
 #       docker  PostgreSQL in a Docker container on port 5433 (opens Docker Desktop if it is installed but closed)
 #       local   a PostgreSQL already installed on this PC (found on whatever port it runs; LOCAL_DB_PORT to force one),
 #               database/user "eventtickets"
-#       h2      built-in in-memory database: needs nothing but Java; data resets when the app restarts
-#   --reset  docker: deletes the container so Flyway recreates the tables and seed data (h2 always starts fresh)
+#   --reset  docker: deletes the container so Flyway recreates the tables and seed data
 set -euo pipefail
 
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -24,7 +23,7 @@ for arg in "$@"; do
   case "$arg" in
     --open) OPEN=true ;;
     --reset) RESET=true ;;
-    --database=auto|--database=docker|--database=local|--database=h2) DATABASE="${arg#--database=}" ;;
+    --database=auto|--database=docker|--database=local) DATABASE="${arg#--database=}" ;;
     *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -77,13 +76,12 @@ local_pg_port() {
 
 MODE=""
 case "$DATABASE" in
-  docker) try_docker && MODE=docker || fail "Docker is not available (use --database=local or --database=h2)." ;;
+  docker) try_docker && MODE=docker || fail "Docker is not available (use --database=local)." ;;
   local)  if p=$(local_pg_port); then LOCAL_DB_PORT=$p; MODE=local; else fail "No running PostgreSQL found on this machine."; fi ;;
-  h2)     MODE=h2 ;;
   auto)
     if try_docker; then MODE=docker
     elif p=$(local_pg_port); then LOCAL_DB_PORT=$p; MODE=local; warn "Docker not available - using the PostgreSQL installed on this PC (port $LOCAL_DB_PORT)"
-    else MODE=h2; warn "No Docker and no PostgreSQL found - using the built-in H2 database (data resets when the app restarts)"
+    else fail "No PostgreSQL found: start Docker Desktop, or install/start PostgreSQL on this machine, then run this again."
     fi ;;
 esac
 echo "$MODE" >"$STATE/mode"
@@ -114,13 +112,6 @@ case "$MODE" in
     ok "Database: local PostgreSQL (localhost:$LOCAL_DB_PORT, database eventtickets)"
     DB_ENV=(DB_URL="jdbc:postgresql://localhost:$LOCAL_DB_PORT/eventtickets"
             DB_USERNAME="${DB_USERNAME:-eventtickets}" DB_PASSWORD="${DB_PASSWORD:-eventtickets}")
-    ;;
-  h2)
-    # H2 keeps its data in a file (so DBeaver can open it); delete it so every start has fresh seed data
-    H2_FILE="$STATE/h2/eventtickets"
-    rm -rf "$STATE/h2"
-    ok "Database: built-in H2 (fresh seed data on every start)"
-    DB_ENV=(SPRING_PROFILES_ACTIVE=h2 H2_DB_FILE="$H2_FILE")
     ;;
 esac
 
@@ -182,7 +173,6 @@ echo "  Database  : $MODE"
 case "$MODE" in
   docker) echo "  DBeaver   : PostgreSQL · host localhost · port 5433 · database eventtickets · user eventtickets · password eventtickets" ;;
   local)  echo "  DBeaver   : PostgreSQL · host localhost · port $LOCAL_DB_PORT · database eventtickets · user ${DB_USERNAME:-eventtickets} · password ${DB_PASSWORD:-eventtickets}" ;;
-  h2)     echo "  DBeaver   : H2 Embedded V.2 · JDBC URL jdbc:h2:file:$H2_FILE;MODE=PostgreSQL;DATABASE_TO_UPPER=true;AUTO_SERVER=TRUE · user sa · no password" ;;
 esac
 echo "  Users     : admin/admin123 · alice/user123 · dara/user123"
 echo "  Stop      : .claude/skills/demo/scripts/stop.sh   (add --db to also stop the Docker database)"

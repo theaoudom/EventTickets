@@ -1,6 +1,6 @@
 ---
 name: demo
-description: Start, stop or reset the Event Tickets API demo in this project — picks the database (PostgreSQL in Docker on port 5433, else a PostgreSQL installed on the PC, else built-in H2), runs the Spring Boot app on a free port, checks the demo page and prints its URL. Use when asked to start, run, open, restart, reset or stop the demo/app/project, or how to connect DBeaver / see the database tables. Usage: /demo [start | stop | stop --db | restart | reset | status | db | h2]
+description: Start, stop or reset the Event Tickets API demo in this project — picks the PostgreSQL database (in Docker on port 5433, else the PostgreSQL installed on the PC), runs the Spring Boot app on a free port, checks the demo page and prints its URL. Use when asked to start, run, open, restart, reset or stop the demo/app/project, or how to connect DBeaver / see the database tables. Usage: /demo [start | stop | stop --db | restart | reset | status | db]
 ---
 
 # Event Tickets demo
@@ -13,7 +13,7 @@ steps to run, the request/response, and the rule's event with its seats and book
   Picks the first free port of 8090, 8091, 8095, 9090, 9095 (8080/8081 are often taken by other KOSIGN projects).
   Safe to run twice: if the app is already up it just prints the URL. `PORT=8095` forces a port; `--open` opens the browser;
   `--reset` deletes the database container first so the data goes back to the 3 seed events and 3 users.
-  `--database=auto|docker|local|h2` (default `auto`) chooses the database; see below.
+  `--database=auto|docker|local` (default `auto`) chooses the database; see below.
 - `.claude/skills/demo/scripts/stop.sh` — stops only this project's app (checks the process before killing). `--db` also stops PostgreSQL.
 - **Windows:** `start.ps1` / `stop.ps1` do the same in PowerShell (the `.sh` scripts need macOS tools such as `lsof`
   and `open`). Same options as switches: `-Open`, `-Reset`, `-Port 8095`, and `-Db` for stop. Users without Claude
@@ -23,19 +23,18 @@ Run state (port, pid, log, chosen database in `mode`) is kept in `eventtickets/b
 
 ## Which database
 
-`auto` uses the first that works, and the script prints which one it chose (tell the user):
+The project uses **PostgreSQL only**. `auto` uses the first that works and prints which one it chose (tell the user).
+If neither exists, the script stops and says to start Docker Desktop or install/start PostgreSQL — help with that;
+there is no other fallback. (H2 is used only by the automated tests.)
 
 1. **docker** — PostgreSQL in the `eventtickets-pg` container on port 5433. Opens Docker Desktop if it is installed but closed.
 2. **local** — a PostgreSQL already installed on the PC, found by its `postgres` process on whatever port it uses
    (port 5432 first; `LOCAL_DB_PORT` / `-LocalDbPort` forces one). On Windows, if a `postgresql*` service exists but is
-   stopped, the script says so (start it in services.msc) and falls back to H2.
+   stopped, the script says so (start it in services.msc).
    Needs database and user `eventtickets` (password `eventtickets`, or set `DB_USERNAME` / `DB_PASSWORD`). If they are
    missing the script prints the two SQL lines to run once in pgAdmin or psql as the postgres user:
    `CREATE USER eventtickets WITH PASSWORD 'eventtickets';` and `CREATE DATABASE eventtickets OWNER eventtickets;`
    Never create them yourself with the user's postgres password unless the user gives it and asks you to.
-3. **h2** — the built-in H2 database (Spring profile `h2`), stored in `eventtickets/build/demo/h2/` with `AUTO_SERVER`
-   so DBeaver can open it while the app runs. Needs only Java; same Flyway migrations and rules; the scripts delete
-   the file on every start, so data resets whenever the app restarts. Say so when it is chosen.
 
 `reset` only deletes data in the Docker database; for `local` the script prints the SQL to reset it instead.
 
@@ -48,12 +47,10 @@ start; if missing, the demo has not been started on this PC — start it first) 
 |---|---|---|---|---|---|
 | `docker` | PostgreSQL | localhost | **5433** | eventtickets | eventtickets / eventtickets |
 | `local` | PostgreSQL | localhost | value in `local_db_port` (default **5432**) | eventtickets | eventtickets / eventtickets (or the `DB_USERNAME` / `DB_PASSWORD` used) |
-| `h2` | **H2 Embedded V.2** (paste the JDBC URL instead of host/port) | — | — | the full path printed by the start script: `jdbc:h2:file:<repo>/eventtickets/build/demo/h2/eventtickets;MODE=PostgreSQL;DATABASE_TO_UPPER=true;AUTO_SERVER=TRUE` | `sa` / empty password |
 
 Tables: `tb_user`, `tb_event`, `tb_booking`, `flyway_schema_history` in schema `public` (PostgreSQL shows them lowercase).
 
-If DBeaver reports an error, match it: "Connection refused" → wrong port or the database is not running; for `h2`, the URL must match the printed one
-exactly (including `AUTO_SERVER=TRUE`) and the app must be running; in H2 the tables show in UPPERCASE under PUBLIC;
+If DBeaver reports an error, match it: "Connection refused" → wrong port or the database is not running;
 "password authentication failed" / "database eventtickets does not exist" → the two SQL lines were not run;
 driver download fails → needs internet once.
 
@@ -77,7 +74,6 @@ Pick the action from the argument (no argument → `start`):
 | `restart` | `stop.sh`, then `start.sh --open` | `stop.ps1`, then `start.ps1 -Open` |
 | `reset` | `start.sh --reset --open` | `start.ps1 -Reset -Open` |
 | `db` (DBeaver / database connection) | read `eventtickets/build/demo/mode` (and `local_db_port`), then answer from the table in "Database connection" below — no script needed | same |
-| `h2` (no database needed) | `start.sh --database=h2 --open` | `start.ps1 -Database h2 -Open` |
 | `status` | `cat eventtickets/build/demo/port`, then `curl -s -o /dev/null -w '%{http_code}' http://localhost:<port>/`; `docker ps --filter name=eventtickets-pg` | same commands (they work in Git Bash) |
 
 `reset` **deletes all bookings and events made since setup**; run it only when the user asked for `reset`.

@@ -1,18 +1,17 @@
 # Windows version of start.sh: database -> Spring Boot app -> prints the demo URL.
 # Usage (from the repo root):
-#   powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\demo\scripts\start.ps1 [-Open] [-Reset] [-Port 8095] [-Database auto|docker|local|h2]
+#   powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\demo\scripts\start.ps1 [-Open] [-Reset] [-Port 8095] [-Database auto|docker|local]
 #   -Database auto (default) picks the first that works:
 #       docker  PostgreSQL in a Docker container on port 5433 (opens Docker Desktop if it is installed but closed)
 #       local   a PostgreSQL already installed on this PC (found on whatever port it runs; -LocalDbPort to force one),
 #               database/user "eventtickets"
-#       h2      built-in in-memory database: needs nothing but Java; data resets when the app restarts
-#   -Reset  docker: deletes the container so Flyway recreates the tables and seed data (h2 always starts fresh)
+#   -Reset  docker: deletes the container so Flyway recreates the tables and seed data
 # Keep this file plain ASCII: Windows PowerShell 5.1 misreads UTF-8 files without a BOM.
 param(
   [switch]$Open,
   [switch]$Reset,
   [int]$Port = 0,
-  [ValidateSet('auto', 'docker', 'local', 'h2')][string]$Database = 'auto',
+  [ValidateSet('auto', 'docker', 'local')][string]$Database = 'auto',
   [int]$LocalDbPort = 5432
 )
 
@@ -88,16 +87,15 @@ function Resolve-LocalPostgres {
 function Warn-StoppedPostgres {
   $stopped = Get-Service -Name 'postgresql*' -ErrorAction SilentlyContinue | Where-Object { $_.Status -ne 'Running' }
   foreach ($svc in $stopped) {
-    Warn "PostgreSQL is installed but its service '$($svc.Name)' is stopped. To use it: Win+R, services.msc, right-click it, Start - then run this again."
+    Warn "PostgreSQL is installed but its service '$($svc.Name)' is stopped. Start it: Win+R, services.msc, right-click it, Start - then run this again."
   }
 }
 switch ($Database) {
-  'docker' { if (Start-DockerIfInstalled) { $mode = 'docker' } else { Fail 'Docker is not available (use -Database local or -Database h2).' } }
+  'docker' { if (Start-DockerIfInstalled) { $mode = 'docker' } else { Fail 'Docker is not available (use -Database local).' } }
   'local'  {
     $found = Resolve-LocalPostgres
     if ($found) { $LocalDbPort = $found; $mode = 'local' } else { Warn-StoppedPostgres; Fail 'No running PostgreSQL found on this PC.' }
   }
-  'h2'     { $mode = 'h2' }
   default {
     if (Start-DockerIfInstalled) { $mode = 'docker' }
     else {
@@ -105,7 +103,7 @@ switch ($Database) {
       if ($found) { $LocalDbPort = $found; $mode = 'local'; Warn "Docker not available - using the PostgreSQL installed on this PC (port $LocalDbPort)" }
       else {
         Warn-StoppedPostgres
-        $mode = 'h2'; Warn 'No Docker and no running PostgreSQL found - using the built-in H2 database (data resets when the app restarts)'
+        Fail 'No PostgreSQL found: start Docker Desktop, or install/start PostgreSQL on this PC, then run this again.'
       }
     }
   }
@@ -114,7 +112,6 @@ Set-Content -Path (Join-Path $State 'mode') -Value $mode
 Set-Content -Path (Join-Path $State 'local_db_port') -Value $LocalDbPort
 
 # 2. Prepare the database and the settings for the app
-Remove-Item Env:SPRING_PROFILES_ACTIVE -ErrorAction SilentlyContinue
 if ($mode -eq 'docker') {
   Ok 'Docker is running'
   if ($Reset) {
@@ -146,15 +143,6 @@ elseif ($mode -eq 'local') {
   $env:DB_URL = "jdbc:postgresql://localhost:$LocalDbPort/eventtickets"
   if (-not $env:DB_USERNAME) { $env:DB_USERNAME = 'eventtickets' }
   if (-not $env:DB_PASSWORD) { $env:DB_PASSWORD = 'eventtickets' }
-}
-else {
-  # H2 keeps its data in a file (so DBeaver can open it); delete it so every start has fresh seed data
-  $h2Dir = Join-Path $State 'h2'
-  Remove-Item $h2Dir -Recurse -Force -ErrorAction SilentlyContinue
-  $h2File = (Join-Path $h2Dir 'eventtickets') -replace '\\', '/'
-  Ok 'Database: built-in H2 (fresh seed data on every start)'
-  $env:SPRING_PROFILES_ACTIVE = 'h2'
-  $env:H2_DB_FILE = $h2File
 }
 
 # 3. Free port (8080/8081 are often used by other projects)
@@ -195,7 +183,7 @@ for ($i = 0; $i -lt 240; $i++) {
       Write-Host "      CREATE USER eventtickets WITH PASSWORD 'eventtickets';" -ForegroundColor Yellow
       Write-Host '      CREATE DATABASE eventtickets OWNER eventtickets;' -ForegroundColor Yellow
       Write-Host ''
-      Write-Host '  Then start again. (Or use -Database h2 to run without PostgreSQL.)'
+      Write-Host '  Then start again.'
     } else {
       Get-Content $Log, $ErrLog -ErrorAction SilentlyContinue | Select-String -Pattern 'Description:|Reason:|What went wrong' -Context 0, 4 | Select-Object -First 3
     }
@@ -215,10 +203,6 @@ Write-Host "  Swagger   : http://localhost:$use/swagger-ui.html"
 Write-Host "  Database  : $mode"
 if ($mode -eq 'docker') { Write-Host '  DBeaver   : PostgreSQL - host localhost - port 5433 - database eventtickets - user eventtickets - password eventtickets' }
 elseif ($mode -eq 'local') { Write-Host "  DBeaver   : PostgreSQL - host localhost - port $LocalDbPort - database eventtickets - user $($env:DB_USERNAME) - password $($env:DB_PASSWORD)" }
-else {
-  Write-Host '  DBeaver   : New connection - H2 Embedded V.2 - user sa - no password - JDBC URL:'
-  Write-Host "              jdbc:h2:file:$($env:H2_DB_FILE);MODE=PostgreSQL;DATABASE_TO_UPPER=true;AUTO_SERVER=TRUE"
-}
 Write-Host '  Users     : admin/admin123 - alice/user123 - dara/user123'
 Write-Host '  Stop      : demo-stop.cmd  (or stop.ps1 -Db to also stop the Docker database)'
 if ($Open) { Start-Process "http://localhost:$use/" }

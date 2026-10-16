@@ -13,10 +13,9 @@ server-side price, no booking a cancelled event, own bookings only).
 
 ## Run
 
-Requires **Java 21**. The start scripts pick the database automatically:
-**Docker** (PostgreSQL container on port 5433) if available → else a **PostgreSQL installed on the PC** (port 5432) →
-else the built-in **H2** database (no install needed; data resets on restart). The start output prints how to connect
-DBeaver to whichever database it chose — for H2 that is a JDBC URL with user `sa` and no password.
+Requires **Java 21** and **PostgreSQL**, either through **Docker Desktop** (a container on port 5433, created
+automatically) or a **PostgreSQL installed on the PC** (found automatically on its port). The start output says which
+one it used and prints the DBeaver connection settings.
 The first start downloads Gradle (and PostgreSQL for Docker), so it takes a few minutes.
 
 Using an installed PostgreSQL? Create the project database once (pgAdmin Query Tool, as the postgres user):
@@ -29,7 +28,7 @@ CREATE DATABASE eventtickets OWNER eventtickets;
 | | Start (opens the demo page) | Stop |
 |---|---|---|
 | **Claude Code** (Mac or Windows) | `/demo` · `/demo reset` for clean seed data | `/demo stop` |
-| **Windows** | double-click **`demo-start.cmd`** (`demo-start.cmd reset` · `demo-start.cmd h2`) | double-click **`demo-stop.cmd`** |
+| **Windows** | double-click **`demo-start.cmd`** (`demo-start.cmd reset` for clean seed data) | double-click **`demo-stop.cmd`** |
 | **Mac / Linux** | `bash .claude/skills/demo/scripts/start.sh --open` | `bash .claude/skills/demo/scripts/stop.sh --db` |
 
 Logins: `admin/admin123` (ADMIN), `alice/user123` and `dara/user123` (USER).
